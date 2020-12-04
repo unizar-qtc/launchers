@@ -1,0 +1,192 @@
+#!/bin/bash
+
+# File: GMX_launcher
+# Description : GROMACS job launcher
+# Version : 1.0
+# Last update : 04-12-2020
+
+#######################################################################
+##                           GMX_launcher                            ##
+#######################################################################
+# Launcher for GROMACS jobs from '.tpr' files
+#
+# USAGE:    GMX_launcher [-c #cores] [-m #memory] [-g #gpus] [-q queue]
+#                                           [-n #n] [-v #v] [-cpi .cpt]
+#                                                    [-j] [-h | --help]
+#                                         <file1.tpr> <file2.tpr> <...>
+#
+# all the '-*' arguments must preceed the input files
+# [*] options are optional, <*> files are mandatory
+#
+
+##  DEFAULT VARIABLES  ################################################
+
+  __version__='1.0'
+
+  nodes_def=1                       # number of nodes (only of SLURM)
+  cores_def=8                       # number of cores / parallel enviroment
+  memory_def='16GB'                 # RAM memory (100MW = 800MB)
+  gpus_def=2                        # number of GPU cards
+
+  queue_sge='BIFIZCAM'              # name of queue to submit
+  queue_slurm='gpu'                 # name of queue to submit
+
+  origin=$PWD                       # path of the input files
+  destination=$PWD                  # path to store the outputs
+  msg=$HOME/msg                     # path for output/error messages
+  jobf=$HOME/jobs                   # path to store '.job'
+  chkf=$HOME/chk                    # path to store '.chk'
+  job_flg=false                     # create .job file but do not launch [true, false]
+  allowed_exten=( 'tpr' )           # allowed file extensions
+  executable='gmx_mpi'              # executable command
+  modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
+
+#######################################################################
+
+## Checks if no arguments are in the input
+if [ "$1" == "" ]; then
+  echo "ERROR: No input arguments. Use -h for help."
+  exit
+fi
+
+## Checks existence of folders or create them
+if [[ ! -d $msg ]]; then mkdir $msg; fi
+if [[ ! -d $jobf ]]; then mkdir $jobf; fi
+
+## Checks for optional arguments
+while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
+  arg="$1"
+  shift
+  case $arg in
+    -h|--help)          # print help and exit
+      echo "---------------  GMX_launcher  ---------------"
+      echo "               GROMACS LAUNCHER"
+      echo
+      echo "Version: $__version__"
+      echo
+      echo "USAGE:   GMX_launcher [options] <file.tpr> ..."
+      echo
+      echo "OPTIONS:"
+      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
+      echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
+      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -cpi  <file.cpt>                  use checkpoint file to continue"
+      echo " -j                                create .job but do not launch"
+      echo " -h | --help                       print this help and exit"
+      echo
+      echo "NAMING OPTIONS:"
+      echo " -v  <#>                           version number (naming: 'file_vV' / 'file_vV_N')"
+      echo " -n  <#>                           run number (naming: 'file_N' / 'file_vV_N')"
+      echo
+      echo "INPUT:"
+      echo " <file.tpr> ...                    GROMACS input file"
+      echo "                                   must be the last argument, can be multiple"
+      exit ;;
+    -v)
+      runv="_v$1"
+      shift
+      ;;
+    -n)
+      runn="_$1"
+      shift
+      ;;
+    --nodes)
+      nodes=$1
+      shift
+      ;;
+    -c|--cores)
+      cores=$1
+      shift
+      ;;
+    -m|--memory)
+      memory=$1
+      shift
+      ;;
+    -g|--gpus)
+      gpus=$1
+      shift
+      ;;
+    -q|--queue)
+      queue_sge=$1
+      queue_slurm=$1
+      shift
+      ;;
+    -cpi)               # use checkpoint file
+      cpt=$1
+      check_command="-cpi $cpt -noappend"
+      shift
+      ;;
+    -j)                 # create .job file but do not submit
+      job_flg=true
+      ;;
+    *)                  # error option
+      echo "ERROR: Wrong option '$arg'"
+      exit ;;
+  esac
+done
+
+## default values if not specified in input
+nodes=${nodes:=$nodes_def}
+cores=${cores:=$cores_def}
+memory=${memory:=$memory_def}
+gpus=${gpus:=$gpus_def}
+
+## go through every input file found in the arguments
+for file in "$@"; do
+
+  name=${file%.*}              # name of input file without extension
+  namef=${name}${runv}${runn}  # formatted name for output
+  exten=${file##*.}            # extension of input file
+
+  # check file existence and extension
+  if [ ! -f $file ]; then
+    echo "ERROR: '$file' not found"
+    continue
+  elif [[ ! ${allowed_exten[*]} =~ $(echo "\<${exten}\>") ]]; then
+	  echo "ERROR: '$file' is not a valid input file (wrong extension)"
+    continue
+  fi
+
+  ## write .job file
+  jobname="${namef}.job"
+  echo "#!/bin/bash"                          >  ${jobname}
+  echo ""                                     >> ${jobname} ## SGE ######################
+  echo "#$ -N ${name}"                        >> ${jobname} # Job name
+  echo "#$ -e $msg/${name}.msg"               >> ${jobname} # Error mesages path
+  echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
+  echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
+  if [ "$cores" != '1' ]; then
+    echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
+  fi
+  echo ""                                     >> ${jobname} ## SLURM ####################
+  echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
+  echo "#SBATCH -o $msg/${name}.msg"          >> ${jobname} # Error mesages path
+  echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
+  echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
+  echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
+  echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
+  if [ "$queue_slurm" == 'gpu' ]; then
+    echo "#SBATCH --gres=gpu:${gpus}"         >> ${jobname} # GPUs
+  fi
+  echo ""                                     >> ${jobname}
+
+  # modules
+  for mod in ${modules[@]}; do
+    echo "module load $mod"                   >> ${jobname}
+  done
+  echo ""                                     >> ${jobname}
+
+  # main execution
+  echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"  >> ${jobname}
+
+  ## launch
+  if [ "$job_flg" == "true" ]; then
+    echo "Job file '${jobname}' succesfully created!"
+  else
+    { qsub ${origin}/${jobname} ; } 2>/dev/null
+    { sbatch ${origin}/${jobname} ; } 2>/dev/null
+    mv ${origin}/${jobname} $jobf  # move .job file to proper folder
+  fi
+done
