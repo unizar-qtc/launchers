@@ -30,7 +30,7 @@
   queue_slurm='bifi'                # name of queue to submit
 
   msgf=$HOME/msg                    # path for output/error messages
-  job_flg=false                     # create .job file but do not launch [true, false]
+  job_flg=false                     # display command but do not launch [true, false]
 
 #######################################################################
 
@@ -81,7 +81,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       queue_slurm=$1
       shift
       ;;
-    -j)                 # create .job file but do not submit
+    -j)                 # display command but do not submit
       job_flg=true
       ;;
     *)                  # error option
@@ -101,6 +101,7 @@ gpus=${gpus:=$gpus_def}
 executable_sge="qrsh \
                 -N 'INTER' \
                 -e $msgf/inter.msg \
+                -o $msgf/inter.msg \
                 -q $queue_sge \
                 -now yes"
 if [ "$cores" != '1' ]; then        # single core case

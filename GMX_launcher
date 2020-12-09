@@ -3,7 +3,7 @@
 # File: GMX_launcher
 # Description : GROMACS job launcher
 # Version : 1.0
-# Last update : 04-12-2020
+# Last update : 09-12-2020
 
 #######################################################################
 ##                           GMX_launcher                            ##
@@ -33,7 +33,7 @@
 
   origin=$PWD                       # path of the input files
   destination=$PWD                  # path to store the outputs
-  msg=$HOME/msg                     # path for output/error messages
+  msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
   chkf=$HOME/chk                    # path to store '.chk'
   job_flg=false                     # create .job file but do not launch [true, false]
@@ -50,7 +50,7 @@ if [ "$1" == "" ]; then
 fi
 
 ## Checks existence of folders or create them
-if [[ ! -d $msg ]]; then mkdir $msg; fi
+if [[ ! -d $msgf ]]; then mkdir $msgf; fi
 if [[ ! -d $jobf ]]; then mkdir $jobf; fi
 
 ## Checks for optional arguments
@@ -154,7 +154,8 @@ for file in "$@"; do
   echo "#!/bin/bash"                          >  ${jobname}
   echo ""                                     >> ${jobname} ## SGE ######################
   echo "#$ -N ${name}"                        >> ${jobname} # Job name
-  echo "#$ -e $msg/${name}.msg"               >> ${jobname} # Error mesages path
+  echo "#$ -e $msgf/${name}.msg"              >> ${jobname} # Error mesages path
+  echo "#$ -o $msgf/${name}.msg"              >> ${jobname} # Output mesages path
   echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
   echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
   if [ "$cores" != '1' ]; then
@@ -162,7 +163,8 @@ for file in "$@"; do
   fi
   echo ""                                     >> ${jobname} ## SLURM ####################
   echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
-  echo "#SBATCH -o $msg/${name}.msg"          >> ${jobname} # Error mesages path
+  echo "#SBATCH -e $msgf/${name}.msg"         >> ${jobname} # Error mesages path
+  echo "#SBATCH -o $msgf/${name}.msg"         >> ${jobname} # Output mesages path
   echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
   echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
   echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
