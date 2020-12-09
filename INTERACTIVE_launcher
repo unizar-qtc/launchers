@@ -1,0 +1,140 @@
+#!/bin/bash
+
+# File: INTERACTIVE_launcher
+# Description : INTERACTIVE session launcher
+# Version : 1.0
+# Last update : 09-12-2020
+
+#######################################################################
+##                        INTERACTIVE_launcher                       ##
+#######################################################################
+# Launcher for interactive sessions on calculation nodes
+#
+# USAGE:                  INTERACTIVE_launcher [-c #cores] [-m #memory]
+#                                                 [-g #gpus] [-q queue]
+#                                                    [-j] [-h | --help]
+#
+# [*] options are optional
+#
+
+##  DEFAULT VARIABLES  ################################################
+
+  __version__='1.0'
+
+  nodes_def=1                       # number of nodes (only of SLURM)
+  cores_def=8                       # number of cores / parallel enviroment
+  memory_def='8GB'                  # RAM memory (100MW = 800MB)
+  gpus_def=0                        # number of GPU cards
+
+  queue_sge='BIFIZCAM'              # name of queue to submit
+  queue_slurm='bifi'                # name of queue to submit
+
+  msgf=$HOME/msg                    # path for output/error messages
+  job_flg=false                     # create .job file but do not launch [true, false]
+
+#######################################################################
+
+## Checks existence of folders or create them
+if [[ ! -d $msgf ]]; then mkdir $msgf; fi
+
+## Checks for optional arguments if any
+while [ $# -gt 0 ]; do     # until no more arguments
+  arg="$1"
+  shift
+  case $arg in
+    -h|--help)          # print help and exit
+      echo "------------  INTERACTIVE_launcher  ------------"
+      echo "          INTERACTIVE SESSION LAUNCHER"
+      echo
+      echo "Version: $__version__"
+      echo
+      echo "USAGE:   INTERACTIVE_launcher [options]"
+      echo
+      echo "OPTIONS:"
+      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
+      echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
+      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -j                                display command but do not launch"
+      echo " -h | --help                       print this help and exit"
+      echo
+      exit ;;
+    --nodes)
+      nodes=$1
+      shift
+      ;;
+    -c|--cores)
+      cores=$1
+      shift
+      ;;
+    -m|--memory)
+      memory=$1
+      shift
+      ;;
+    -g|--gpus)
+      gpus=$1
+      shift
+      ;;
+    -q|--queue)
+      queue_sge=$1
+      queue_slurm=$1
+      shift
+      ;;
+    -j)                 # create .job file but do not submit
+      job_flg=true
+      ;;
+    *)                  # error option
+      echo "ERROR: Wrong option '$arg'"
+      exit ;;
+  esac
+done
+
+## default values if not specified in input
+nodes=${nodes:=$nodes_def}
+cores=${cores:=$cores_def}
+memory=${memory:=$memory_def}
+gpus=${gpus:=$gpus_def}
+
+## build launch commands
+# SGE
+executable_sge="qrsh \
+                -N 'INTER' \
+                -e $msgf/inter.msg \
+                -q $queue_sge \
+                -now yes"
+if [ "$cores" != '1' ]; then        # single core case
+  executable_sge=$executable_sge" -pe mp$cores $cores"
+fi
+# SLURM
+executable_slurm="srun \
+                  -J 'INTER' \
+                  -p $queue_slurm \
+                  -N $nodes \
+                  --ntasks-per-node=$cores \
+                  --mem=$memory \
+                  --pty bash"
+if [ "$queue_slurm" == 'gpu' ]; then
+  executable_slurm=$executable_slurm" --gres=gpu:$gpus"
+fi
+
+## detect queue manager
+#TODO: make independent from BIFI hostnames (memento/cierzo)
+case $HOSTNAME in
+  'memento')
+    executable=$executable_sge
+    ;;
+  'cierzo')
+    executable=$executable_slurm
+    ;;
+  *)
+    echo "ERROR: Unknown '$HOSTNAME' hostname. Please, execute in memento/cierzo."
+    ;;
+esac
+
+## launch
+if [ "$job_flg" == "true" ]; then
+  echo $executable
+else
+  $executable
+fi
