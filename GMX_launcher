@@ -35,7 +35,6 @@
   destination=$PWD                  # path to store the outputs
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
-  chkf=$HOME/chk                    # path to store '.chk'
   job_flg=false                     # create .job file but do not launch [true, false]
   allowed_exten=( 'tpr' )           # allowed file extensions
   executable='gmx_mpi'              # executable command
@@ -178,6 +177,9 @@ for file in "$@"; do
   for mod in ${modules[@]}; do
     echo "module load $mod"                   >> ${jobname}
   done
+  echo ""                                     >> ${jobname}
+
+  echo "cd $origin"                           >> ${jobname}
   echo ""                                     >> ${jobname}
 
   # main execution
