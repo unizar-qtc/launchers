@@ -6,6 +6,7 @@
   - SCRIPT_launcher
   - G09_launcher
   - GMX_launcher
+  - ORCA_launcher
 
 
 ### Exclusive of *Memento*:
