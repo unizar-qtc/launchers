@@ -113,11 +113,11 @@ executable_slurm="srun \
                   -p $queue_slurm \
                   -N $nodes \
                   --ntasks-per-node=$cores \
-                  --mem=$memory \
-                  --pty bash"
+                  --mem=$memory"
 if [ "$queue_slurm" == 'gpu' ]; then
   executable_slurm=$executable_slurm" --gres=gpu:$gpus"
 fi
+executable_slurm=$executable_slurm" --pty bash"
 
 ## detect queue manager
 #TODO: make independent from BIFI hostnames (memento/cierzo)
