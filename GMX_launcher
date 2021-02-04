@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # File: GMX_launcher
-# Description : GROMACS job launcher
-# Version : 1.0
-# Last update : 09-12-2020
+# Description : GROMACS .tpr launcher
+# Version : 1.1
+# Last update : 04-02-2021
 
 #######################################################################
 ##                           GMX_launcher                            ##
@@ -11,7 +11,7 @@
 # Launcher for GROMACS jobs from '.tpr' files
 #
 # USAGE:    GMX_launcher [-c #cores] [-m #memory] [-g #gpus] [-q queue]
-#                                           [-n #n] [-v #v] [-cpi .cpt]
+#                                           [-n #n] [-r #r] [-cpi .cpt]
 #                                                    [-j] [-h | --help]
 #                                         <file1.tpr> <file2.tpr> <...>
 #
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.0'
+  __version__='1.1'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -76,15 +76,15 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -h | --help                       print this help and exit"
       echo
       echo "NAMING OPTIONS:"
-      echo " -v  <#>                           version number (naming: 'file_vV' / 'file_vV_N')"
-      echo " -n  <#>                           run number (naming: 'file_N' / 'file_vV_N')"
+      echo " -r  <#>                           replica number (naming: 'file_r#' / 'file_r#_#')"
+      echo " -n  <#>                           run number (naming: 'file_#' / 'file_r#_#')"
       echo
       echo "INPUT:"
       echo " <file.tpr> ...                    GROMACS input file"
       echo "                                   must be the last argument, can be multiple"
       exit ;;
-    -v)
-      runv="_v$1"
+    -r)
+      runr="_r$1"
       shift
       ;;
     -n)
@@ -136,7 +136,7 @@ gpus=${gpus:=$gpus_def}
 for file in "$@"; do
 
   name=${file%.*}              # name of input file without extension
-  namef=${name}${runv}${runn}  # formatted name for output
+  namef=${name}${runr}${runn}  # formatted name for output
   exten=${file##*.}            # extension of input file
 
   # check file existence and extension
