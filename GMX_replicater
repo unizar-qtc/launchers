@@ -1,0 +1,240 @@
+#!/bin/bash
+
+# File: GMX_replicater
+# Description : Build and launch a sequential equilibration and production job in GROMACS
+# Version : 1.0
+# Last update : 04-02-2021
+
+#######################################################################
+##                          GMX_replicater                           ##
+#######################################################################
+# Script to build and launch a sequential equilibration
+# and production job in GROMACS
+#
+# USAGE:  GMX_replicater [options]
+#
+
+##  DEFAULT VARIABLES  ################################################
+
+  __version__='1.0'
+
+  nodes_def=1                       # number of nodes (only of SLURM)
+  cores_def=8                       # number of cores / parallel enviroment
+  memory_def='16GB'                 # RAM memory (100MW = 800MB)
+  gpus_def=2                        # number of GPU cards
+
+  queue_sge='BIFIZCAM'              # name of queue to submit
+  queue_slurm='gpu'                 # name of queue to submit
+
+  origin=$PWD                       # path of the input files
+  destination=$PWD                  # path to store the outputs
+  msgf=$HOME/msg                    # path for output/error messages
+  jobf=$HOME/jobs                   # path to store '.job'
+  job_flg=false                     # create .job file but do not launch [true, false]
+  executable='gmx_mpi'              # executable command
+  modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
+
+  prefix_path_def='.'               # path to look for files
+  topol_def='topol.top'             # topology file
+
+#######################################################################
+
+## Checks if no arguments are in the input
+if [ "$1" == "" ]; then
+  echo "ERROR: No input arguments. Use -h for help."
+  exit
+fi
+
+## Checks existence of folders or create them
+if [[ ! -d $msgf ]]; then mkdir $msgf; fi
+if [[ ! -d $jobf ]]; then mkdir $jobf; fi
+
+## Checks for optional arguments
+while [ $# -gt 0 ]; do     # until no more arguments
+  arg="$1"
+  shift
+  case $arg in
+    -h|--help)          # print help and exit
+      echo "---------------  GMX_replicater  ---------------"
+      echo "               GROMACS REPLICATER"
+      echo
+      echo "Script to build and launch a sequential equilibration"
+      echo "and production job in GROMACS."
+      echo "At least one .gro and .mdp are needed."
+      echo
+      echo "Version: $__version__"
+      echo
+      echo "USAGE:   GMX_replicater [options]"
+      echo
+      echo "MD OPTIONS:"
+      echo " --coord  <.gro>                   coordinates file"
+      echo " --topol  <.top>                   topology (def: $topol_def)"
+      echo " --equi  <.mdp> ...                equilibration phase (can be multiple, run in order)"
+      echo " --prod  <.mdp>                    production phase"
+      echo " --index  <.ndx>                   index file"
+      echo " --prefix_path  <path>             path to look for files (def: $prefix_path_def)"
+      echo
+      echo "NAMING OPTIONS:"
+      echo " --name  <name>                    name for production (def: filename of production's .mdp)"
+      echo " -r | --replica  <#>               replica number (naming: '${name_def}_r#')"
+      echo
+      echo "COMPUTING OPTIONS:"
+      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
+      echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
+      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -j                                create .job but do not launch"
+      echo " -h | --help                       print this help and exit"
+      echo
+      exit ;;
+    --coord)
+      coord=$1
+      shift ;;
+    --topol)
+      topol=$1
+      shift ;;
+    --equi)
+      while [ $# -gt 0 ]; do
+        if [ ${1:0:1} == "-" ]; then    # break if file starts with '-'
+          break
+        else
+          equi_mdp+=($1)
+          shift
+        fi
+      done ;;
+    --prod)
+      prod_mdp=$1
+      shift ;;
+    --index)
+      index=$1
+      shift ;;
+    --prefix_path)
+      ppath=$1
+      shift ;;
+    --name)
+      name=$1
+      shift ;;
+    -r|--replica)
+      replica="_r$1"
+      shift ;;
+    --nodes)
+      nodes=$1
+      shift ;;
+    -c|--cores)
+      cores=$1
+      shift ;;
+    -m|--memory)
+      memory=$1
+      shift ;;
+    -g|--gpus)
+      gpus=$1
+      shift ;;
+    -q|--queue)
+      queue_sge=$1
+      queue_slurm=$1
+      shift ;;
+    -j)                 # create .job file but do not submit
+      job_flg=true
+      ;;
+    *)                  # error option
+      echo "ERROR: Wrong option '$arg'"
+      exit ;;
+  esac
+done
+
+## default values if not specified in input
+nodes=${nodes:=$nodes_def}
+cores=${cores:=$cores_def}
+memory=${memory:=$memory_def}
+gpus=${gpus:=$gpus_def}
+ppath=${ppath:=$prefix_path_def}
+topol=${topol:=$topol_def}
+
+# calculation files
+topol=$ppath/$topol
+coord=$ppath/$coord
+if [ ! -z "$index" ]; then index="-n $ppath/$index"; fi
+
+# check minimal mandadory options
+if [ -z "$prod_mdp" ] || [ -z "$coord" ]; then
+  echo "ERROR: coordinates file and production mdp required"
+  exit
+fi
+
+# check replica number
+if [ -z "$replica" ]; then echo "WARNING: No replica number specified"; fi
+
+name=${name:=${prod_mdp%.*}}${replica}    # name of replica
+
+## write .job file
+jobname="${name}.job"
+echo $jobname
+echo "#!/bin/bash"                          >  ${jobname}
+echo ""                                     >> ${jobname} ## SGE ######################
+echo "#$ -N ${name}"                        >> ${jobname} # Job name
+echo "#$ -e $msgf/${name}.msg"              >> ${jobname} # Error mesages path
+echo "#$ -o $msgf/${name}.msg"              >> ${jobname} # Output mesages path
+echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
+echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
+if [ "$cores" != '1' ]; then
+  echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
+fi
+echo ""                                     >> ${jobname} ## SLURM ####################
+echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
+echo "#SBATCH -e $msgf/${name}.msg"         >> ${jobname} # Error mesages path
+echo "#SBATCH -o $msgf/${name}.msg"         >> ${jobname} # Output mesages path
+echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
+echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
+echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
+echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
+if [ "$queue_slurm" == 'gpu' ]; then
+  echo "#SBATCH --gres=gpu:${gpus}"         >> ${jobname} # GPUs
+fi
+echo ""                                     >> ${jobname}
+
+# modules
+for mod in ${modules[@]}; do
+  echo "module load $mod"                   >> ${jobname}
+done
+echo ""                                     >> ${jobname}
+
+echo "cd $origin"                           >> ${jobname}
+echo ""                                     >> ${jobname}
+
+# equilibration
+if [ ! -z "$equi_mdp" ]; then
+  for equi in ${equi_mdp[@]}; do
+    equi_name=${equi%.*}${replica}
+    echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
+    # use checkpoint if not the first run
+    if [ ! -z "$equi_prev" ]; then
+      echo -n " -t ${equi_prev}.cpt" >> ${jobname}
+    fi
+    echo >> ${jobname}
+    echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name}" >> ${jobname}
+    coord=${equi_name}.gro
+    equi_prev=${equi_name}
+    echo >> ${jobname}
+  done
+else
+  echo "WARNING: No equilibration specified"
+fi
+
+# production
+echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
+# use checkpoint if not the first run
+if [ ! -z "$equi_prev" ]; then
+  echo -n " -t ${equi_prev}.cpt" >> ${jobname}
+fi
+echo >> ${jobname}
+echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${name}.tpr -deffnm ${name}" >> ${jobname}
+
+## launch
+if [ "$job_flg" == "true" ]; then
+  echo "Job file '${jobname}' succesfully created!"
+else
+  { qsub ${origin}/${jobname} ; } 2>/dev/null
+  { sbatch ${origin}/${jobname} ; } 2>/dev/null
+  mv ${origin}/${jobname} $jobf  # move .job file to proper folder
+fi
