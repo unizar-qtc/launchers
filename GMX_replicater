@@ -76,7 +76,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo
       echo "NAMING OPTIONS:"
       echo " --name  <name>                    name for production (def: filename of production's .mdp)"
-      echo " -r | --replica  <#>               replica number (naming: '${name_def}_r#')"
+      echo " -r | --replica  <#> ...           replica number (can be multiple) (naming: '${name_def}_r#')"
       echo
       echo "COMPUTING OPTIONS:"
       echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
@@ -113,11 +113,17 @@ while [ $# -gt 0 ]; do     # until no more arguments
       ppath=$1
       shift ;;
     --name)
-      name=$1
+      name_over=$1
       shift ;;
     -r|--replica)
-      replica="_r$1"
-      shift ;;
+      while [ $# -gt 0 ]; do
+        if [ ${1:0:1} == "-" ]; then    # break if file starts with '-'
+          break
+        else
+          replica_list+=("_r$1")
+          shift
+        fi
+      done ;;
     --nodes)
       nodes=$1
       shift ;;
@@ -163,78 +169,86 @@ if [ -z "$prod_mdp" ] || [ -z "$coord" ]; then
 fi
 
 # check replica number
-if [ -z "$replica" ]; then echo "WARNING: No replica number specified"; fi
-
-name=${name:=${prod_mdp%.*}}${replica}    # name of replica
-
-## write .job file
-jobname="${name}.job"
-echo $jobname
-echo "#!/bin/bash"                          >  ${jobname}
-echo ""                                     >> ${jobname} ## SGE ######################
-echo "#$ -N ${name}"                        >> ${jobname} # Job name
-echo "#$ -e $msgf/${name}.msg"              >> ${jobname} # Error mesages path
-echo "#$ -o $msgf/${name}.msg"              >> ${jobname} # Output mesages path
-echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
-echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
-if [ "$cores" != '1' ]; then
-  echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
+if [ -z "$replica_list" ]; then
+  echo "WARNING: No replica number specified"
+  replica_list+=("EMPTY")
 fi
-echo ""                                     >> ${jobname} ## SLURM ####################
-echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
-echo "#SBATCH -e $msgf/${name}.msg"         >> ${jobname} # Error mesages path
-echo "#SBATCH -o $msgf/${name}.msg"         >> ${jobname} # Output mesages path
-echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
-echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
-echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
-echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
-if [ "$queue_slurm" == 'gpu' ]; then
-  echo "#SBATCH --gres=gpu:${gpus}"         >> ${jobname} # GPUs
-fi
-echo ""                                     >> ${jobname}
 
-# modules
-for mod in ${modules[@]}; do
-  echo "module load $mod"                   >> ${jobname}
-done
-echo ""                                     >> ${jobname}
+## loop over replicas
+for replica in ${replica_list[@]}; do
+  if [ "$replica" == "EMPTY" ]; then replica=""; fi
+  name=${name_over:=${prod_mdp%.*}}${replica}    # name of replica
 
-echo "cd $origin"                           >> ${jobname}
-echo ""                                     >> ${jobname}
+  echo "# $name"
 
-# equilibration
-if [ ! -z "$equi_mdp" ]; then
-  for equi in ${equi_mdp[@]}; do
-    equi_name=${equi%.*}${replica}
-    echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
-    # use checkpoint if not the first run
-    if [ ! -z "$equi_prev" ]; then
-      echo -n " -t ${equi_prev}.cpt" >> ${jobname}
-    fi
-    echo >> ${jobname}
-    echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name}" >> ${jobname}
-    coord=${equi_name}.gro
-    equi_prev=${equi_name}
-    echo >> ${jobname}
+  ## write .job file
+  jobname="${name}.job"
+  echo "#!/bin/bash"                          >  ${jobname}
+  echo ""                                     >> ${jobname} ## SGE ######################
+  echo "#$ -N ${name}"                        >> ${jobname} # Job name
+  echo "#$ -e $msgf/${name}.msg"              >> ${jobname} # Error mesages path
+  echo "#$ -o $msgf/${name}.msg"              >> ${jobname} # Output mesages path
+  echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
+  echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
+  if [ "$cores" != '1' ]; then
+    echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
+  fi
+  echo ""                                     >> ${jobname} ## SLURM ####################
+  echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
+  echo "#SBATCH -e $msgf/${name}.msg"         >> ${jobname} # Error mesages path
+  echo "#SBATCH -o $msgf/${name}.msg"         >> ${jobname} # Output mesages path
+  echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
+  echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
+  echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
+  echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
+  if [ "$queue_slurm" == 'gpu' ]; then
+    echo "#SBATCH --gres=gpu:${gpus}"         >> ${jobname} # GPUs
+  fi
+  echo ""                                     >> ${jobname}
+
+  # modules
+  for mod in ${modules[@]}; do
+    echo "module load $mod"                   >> ${jobname}
   done
-else
-  echo "WARNING: No equilibration specified"
-fi
+  echo ""                                     >> ${jobname}
 
-# production
-echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
-# use checkpoint if not the first run
-if [ ! -z "$equi_prev" ]; then
-  echo -n " -t ${equi_prev}.cpt" >> ${jobname}
-fi
-echo >> ${jobname}
-echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${name}.tpr -deffnm ${name}" >> ${jobname}
+  echo "cd $origin"                           >> ${jobname}
+  echo ""                                     >> ${jobname}
 
-## launch
-if [ "$job_flg" == "true" ]; then
-  echo "Job file '${jobname}' succesfully created!"
-else
-  { qsub ${origin}/${jobname} ; } 2>/dev/null
-  { sbatch ${origin}/${jobname} ; } 2>/dev/null
-  mv ${origin}/${jobname} $jobf  # move .job file to proper folder
-fi
+  # equilibration
+  if [ ! -z "$equi_mdp" ]; then
+    for equi in ${equi_mdp[@]}; do
+      equi_name=${equi%.*}${replica}
+      echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
+      # use checkpoint if not the first run
+      if [ ! -z "$equi_prev" ]; then
+        echo -n " -t ${equi_prev}.cpt" >> ${jobname}
+      fi
+      echo >> ${jobname}
+      echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name}" >> ${jobname}
+      coord=${equi_name}.gro
+      equi_prev=${equi_name}
+      echo >> ${jobname}
+    done
+  else
+    echo "WARNING: No equilibration specified"
+  fi
+
+  # production
+  echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
+  # use checkpoint if not the first run
+  if [ ! -z "$equi_prev" ]; then
+    echo -n " -t ${equi_prev}.cpt" >> ${jobname}
+  fi
+  echo >> ${jobname}
+  echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${name}.tpr -deffnm ${name}" >> ${jobname}
+
+  ## launch
+  if [ "$job_flg" == "true" ]; then
+    echo "Job file '${jobname}' succesfully created!"
+  else
+    { qsub ${origin}/${jobname} ; } 2>/dev/null
+    { sbatch ${origin}/${jobname} ; } 2>/dev/null
+    mv ${origin}/${jobname} $jobf  # move .job file to proper folder
+  fi
+done
