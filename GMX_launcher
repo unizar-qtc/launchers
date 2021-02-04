@@ -185,6 +185,12 @@ for file in "$@"; do
   # main execution
   echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"  >> ${jobname}
 
+  # remove 'part*' nomenclature
+  if [ ! -z $check_command ]; then
+    echo "" >> ${jobname}
+    echo "for i in ${namef}.part*; do j=\${i%.*}; mv \$i \${j%.*}.\${i##*.}; done" >> ${jobname}
+  fi
+
   ## launch
   if [ "$job_flg" == "true" ]; then
     echo "Job file '${jobname}' succesfully created!"
