@@ -6,6 +6,7 @@
   - SCRIPT_launcher
   - G09_launcher
   - GMX_launcher
+  - GMX_replicater
   - ORCA_launcher
 
 
