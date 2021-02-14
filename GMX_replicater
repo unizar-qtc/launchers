@@ -2,8 +2,8 @@
 
 # File: GMX_replicater
 # Description : Build and launch a sequential equilibration and production job in GROMACS
-# Version : 1.0
-# Last update : 04-02-2021
+# Version : 1.1
+# Last update : 14-02-2021
 
 #######################################################################
 ##                          GMX_replicater                           ##
@@ -16,7 +16,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.0'
+  __version__='1.1'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -34,7 +34,7 @@
   executable='gmx_mpi'              # executable command
   modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
 
-  prefix_path_def='.'               # path to look for files
+  prefix_path_def='./'               # path to look for files
   topol_def='topol.top'             # topology file
 
 #######################################################################
@@ -72,7 +72,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo " --equi  <.mdp> ...                equilibration phase (can be multiple, run in order)"
       echo " --prod  <.mdp>                    production phase"
       echo " --index  <.ndx>                   index file"
-      echo " --prefix_path  <path>             path to look for files (def: $prefix_path_def)"
+      echo " --prefix_path  <path>             path to look for files (def: '$prefix_path_def')"
       echo
       echo "NAMING OPTIONS:"
       echo " --name  <name>                    name for production (def: filename of production's .mdp)"
@@ -177,7 +177,8 @@ fi
 ## loop over replicas
 for replica in ${replica_list[@]}; do
   if [ "$replica" == "EMPTY" ]; then replica=""; fi
-  name=${name_over:=${prod_mdp%.*}}${replica}    # name of replica
+  prod_mdp_name=${prod_mdp##*/}; prod_mdp_name=${prod_mdp%.*}
+  name=${name_over:=${prod_mdp_name}}${replica}    # name of replica
 
   echo "# $name"
 
@@ -218,17 +219,17 @@ for replica in ${replica_list[@]}; do
   # equilibration
   if [ ! -z "$equi_mdp" ]; then
     for equi in ${equi_mdp[@]}; do
-      equi_name=${equi%.*}${replica}
+      equi_name=${equi##*/}; equi_name=${equi%.*}${replica}
       echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
       # use checkpoint if not the first run
       if [ ! -z "$equi_prev" ]; then
         echo -n " -t ${equi_prev}.cpt" >> ${jobname}
       fi
-      echo >> ${jobname}
+      echo "" >> ${jobname}
       echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name}" >> ${jobname}
       coord=${equi_name}.gro
       equi_prev=${equi_name}
-      echo >> ${jobname}
+      echo "" >> ${jobname}
     done
   else
     echo "WARNING: No equilibration specified"
@@ -240,7 +241,7 @@ for replica in ${replica_list[@]}; do
   if [ ! -z "$equi_prev" ]; then
     echo -n " -t ${equi_prev}.cpt" >> ${jobname}
   fi
-  echo >> ${jobname}
+  echo "" >> ${jobname}
   echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${name}.tpr -deffnm ${name}" >> ${jobname}
 
   ## launch
