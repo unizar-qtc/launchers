@@ -34,7 +34,7 @@
   executable='gmx_mpi'              # executable command
   modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
 
-  prefix_path_def='./'               # path to look for files
+  prefix_path_def='.'               # path to look for files
   topol_def='topol.top'             # topology file
 
 #######################################################################
@@ -177,7 +177,7 @@ fi
 ## loop over replicas
 for replica in ${replica_list[@]}; do
   if [ "$replica" == "EMPTY" ]; then replica=""; fi
-  prod_mdp_name=${prod_mdp##*/}; prod_mdp_name=${prod_mdp%.*}
+  prod_mdp_name=${prod_mdp##*/}; prod_mdp_name=${prod_mdp_name%.*}
   name=${name_over:=${prod_mdp_name}}${replica}    # name of replica
 
   echo "# $name"
@@ -219,7 +219,7 @@ for replica in ${replica_list[@]}; do
   # equilibration
   if [ ! -z "$equi_mdp" ]; then
     for equi in ${equi_mdp[@]}; do
-      equi_name=${equi##*/}; equi_name=${equi%.*}${replica}
+      equi_name=${equi##*/}; equi_name=${equi_name%.*}${replica}
       echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
       # use checkpoint if not the first run
       if [ ! -z "$equi_prev" ]; then
@@ -232,7 +232,7 @@ for replica in ${replica_list[@]}; do
       echo "" >> ${jobname}
     done
   else
-    echo "WARNING: No equilibration specified"
+    echo "WARNING: No equilibration specified. Skipping equilibration."
   fi
 
   # production
