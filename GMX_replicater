@@ -216,18 +216,21 @@ for replica in ${replica_list[@]}; do
   echo "cd $origin"                           >> ${jobname}
   echo ""                                     >> ${jobname}
 
+  unset equi_prev
+  crd=$coord
+  
   # equilibration
   if [ ! -z "$equi_mdp" ]; then
     for equi in ${equi_mdp[@]}; do
       equi_name=${equi##*/}; equi_name=${equi_name%.*}${replica}
-      echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
+      echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
       # use checkpoint if not the first run
       if [ ! -z "$equi_prev" ]; then
         echo -n " -t ${equi_prev}.cpt" >> ${jobname}
       fi
       echo "" >> ${jobname}
       echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name}" >> ${jobname}
-      coord=${equi_name}.gro
+      crd=${equi_name}.gro
       equi_prev=${equi_name}
       echo "" >> ${jobname}
     done
@@ -236,7 +239,7 @@ for replica in ${replica_list[@]}; do
   fi
 
   # production
-  echo -n "$executable grompp -v -p $topol -c $coord -r $coord -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
+  echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
   # use checkpoint if not the first run
   if [ ! -z "$equi_prev" ]; then
     echo -n " -t ${equi_prev}.cpt" >> ${jobname}
