@@ -2,8 +2,8 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.0
-# Last update : 09-12-2020
+# Version : 1.1
+# Last update : 09-04-2021
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
@@ -20,15 +20,15 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.0'
+  __version__='1.1'
 
   nodes_def=1                       # number of nodes (only of SLURM)
-  cores_def=8                       # number of cores / parallel enviroment
-  memory_def='8GB'                  # RAM memory (100MW = 800MB)
+  cores_def=1                       # number of cores / parallel enviroment
+  memory_def='2GB'                  # RAM memory (100MW = 800MB)
   gpus_def=0                        # number of GPU cards
 
   queue_sge='BIFIZCAM'              # name of queue to submit
-  queue_slurm='bifi'                # name of queue to submit
+  queue_slurm='test'                # name of queue to submit
 
   job_flg=false                     # display command but do not launch [true, false]
 
@@ -100,6 +100,12 @@ gpus=${gpus:=$gpus_def}
 ## read script file from input
 file=$1
 name=${file%.*}       # name of input file without extension
+
+# check name starts with a digit
+if [[ ${name} =~ ^[0-9] ]]; then
+  echo "ERROR: '${file}' name can not start with a digit"
+  exit 1
+fi
 
 ## build launch commands
 # SGE
