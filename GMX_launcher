@@ -11,7 +11,7 @@
 # Launcher for GROMACS jobs from '.tpr' files
 #
 # USAGE:    GMX_launcher [-c #cores] [-m #memory] [-g #gpus] [-q queue]
-#                                           [-n #n] [-r #r] [-cpi .cpt]
+#                             [-n #n] [-r #r] [-cpi .cpt] [-extend #ps]
 #                                                    [-j] [-h | --help]
 #                                         <file1.tpr> <file2.tpr> <...>
 #
@@ -72,6 +72,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
       echo " -cpi  <file.cpt>                  use checkpoint file to continue"
+      echo " -extend  <#ps>                    extend runtime by creating a new tpr [ps]"
       echo " -j                                create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -115,6 +116,10 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
     -cpi)               # use checkpoint file
       cpt=$1
       check_command="-cpi $cpt -noappend"
+      shift
+      ;;
+    -extend)            # extend runtime and create new tpr
+      extend=$1
       shift
       ;;
     -j)                 # create .job file but do not submit
@@ -184,6 +189,12 @@ for file in "$@"; do
 
   echo "cd $origin"                           >> ${jobname}
   echo ""                                     >> ${jobname}
+
+  # create new extended tpr if proper variable set
+  if [ ! -z "${extend}" ]; then
+    echo "$executable convert-tpr -s $file -o ${namef}.tpr -extend $extend" >> ${jobname}
+    file=${namef}.tpr
+  fi
 
   # main execution
   echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"  >> ${jobname}
