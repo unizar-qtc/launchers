@@ -8,6 +8,7 @@
   - GMX_launcher
   - GMX_replicater
   - ORCA_launcher
+  - JAGUAR_launcher
 
 
 ### Exclusive of *Memento*:
