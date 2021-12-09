@@ -2,8 +2,8 @@
 
 # File: G09_launcher
 # Description : Gaussian 09 job launcher
-# Version : 1.1
-# Last update : 09-04-2021
+# Version : 1.2
+# Last update : 09-12-2021
 
 #######################################################################
 ##                           G09_launcher                            ##
@@ -11,7 +11,7 @@
 # Launcher for multiple jobs at a time and set computational variables
 #
 # USAGE:               G09_launcher [-c #cores] [-m #memory] [-q queue]
-#                                             [-chk] [-j] [-h | --help]
+#                                          [-chk] [--dry] [-h | --help]
 #                                         <file1.com> <file2.com> <...>
 #
 # all the '-*' arguments must preceed the input files
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.1'
+  __version__='1.2'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -35,7 +35,7 @@
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
   chkf=$HOME/chk                    # path to store '.chk'
-  job_flg=false                     # create .job file but do not launch [true, false]
+  dry_flg=false                     # dry run: create .job file but do not launch [true, false]
   chk_flg=false                     # keep '.chk' in place [true, false]
   allowed_exten=( 'com' 'gjf' )     # allowed file extensions
   executable='g09'                  # executable command
@@ -73,7 +73,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
       echo " -chk                              keep .chk file in current directory (def: $chk_flg)"
-      echo " -j                                create .job but do not launch"
+      echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
@@ -103,8 +103,8 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       chk_flg=true
       chkf=$PWD
       ;;
-    -j)                 # create .job file but do not submit
-      job_flg=true
+    --dry)              # dry run
+      dry_flg=true
       ;;
     *)                  # error option
       echo "ERROR: Wrong option '$arg'"
@@ -213,7 +213,7 @@ for file in "$@"; do
   fi
 
   ## launch
-  if [ "$job_flg" == "true" ]; then
+  if [ "$dry_flg" == "true" ]; then
     echo "Job file '${jobname}' succesfully created!"
   else
     { qsub ${origin}/${jobname} ; } 2>/dev/null

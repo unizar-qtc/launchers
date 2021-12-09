@@ -2,8 +2,8 @@
 
 # File: ORCA_launcher
 # Description : ORCA job launcher
-# Version : 1.1
-# Last update : 09-04-2021
+# Version : 1.2
+# Last update : 09-12-2021
 
 #######################################################################
 ##                           ORCA_launcher                           ##
@@ -11,7 +11,7 @@
 # Launcher for multiple jobs at a time and set computational variables
 #
 # USAGE:              ORCA_launcher [-c #cores] [-m #memory] [-q queue]
-#                                                    [-j] [-h | --help]
+#                                                 [--dry] [-h | --help]
 #                                         <file1.inp> <file2.inp> <...>
 #
 # all the '-*' arguments must preceed the input files
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.1'
+  __version__='1.2'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -33,7 +33,7 @@
   destination=$PWD                  # path to store the outputs
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
-  job_flg=false                     # create .job file but do not launch [true, false]
+  dry_flg=false                     # dry run: create .job file but do not launch [true, false]
   allowed_exten=( 'inp' )           # allowed file extensions
   executable='/cm/shared/apps/orca/4.0.1.2/orca'
   modules=( 'openmpi/gcc/64/2.1.1' 'orca/4.0.1.2' )
@@ -68,7 +68,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
-      echo " -j                                create .job but do not launch"
+      echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
@@ -94,8 +94,8 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       queue_slurm=$1
       shift
       ;;
-    -j)                 # create .job file but do not submit
-      job_flg=true
+    --dry)              # dry run
+      dry_flg=true
       ;;
     *)                  # error option
       echo "ERROR: Wrong option '$arg'"
@@ -171,7 +171,7 @@ for file in "$@"; do
   echo "${executable} $origin/$file > $destination/${name}.out" >> ${jobname}
 
   ## launch
-  if [ "$job_flg" == "true" ]; then
+  if [ "$dry_flg" == "true" ]; then
     echo "Job file '${jobname}' succesfully created!"
   else
     { qsub ${origin}/${jobname} ; } 2>/dev/null

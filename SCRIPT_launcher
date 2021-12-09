@@ -2,8 +2,8 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.1
-# Last update : 09-04-2021
+# Version : 1.2
+# Last update : 09-12-2021
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
@@ -12,7 +12,7 @@
 #
 # USAGE:                       SCRIPT_launcher [-c #cores] [-m #memory]
 #                                                 [-g #gpus] [-q queue]
-#                                                    [-j] [-h | --help]
+#                                                 [--dry] [-h | --help]
 #                                                           <script.sh>
 #
 # [*] options are optional, <*> files are mandatory
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.1'
+  __version__='1.2'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=1                       # number of cores / parallel enviroment
@@ -30,7 +30,7 @@
   queue_sge='BIFIZCAM'              # name of queue to submit
   queue_slurm='test'                # name of queue to submit
 
-  job_flg=false                     # display command but do not launch [true, false]
+  dry_flg=false                     # dry run: display command but do not launch [true, false]
 
 #######################################################################
 
@@ -53,7 +53,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
-      echo " -j                                display command but do not launch"
+      echo " --dry                             dry run: display command but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
@@ -82,8 +82,8 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       queue_slurm=$1
       shift
       ;;
-    -j)                 # display command but do not submit
-      job_flg=true
+    --dry)              # dry run
+      dry_flg=true
       ;;
     *)                  # error option
       echo "ERROR: Wrong option '$arg'"
@@ -148,7 +148,7 @@ esac
 executable=$executable" $@"
 
 ## launch
-if [ "$job_flg" == "true" ]; then
+if [ "$dry_flg" == "true" ]; then
   echo $executable
 else
   $executable
