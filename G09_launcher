@@ -39,7 +39,8 @@
   chk_flg=false                     # keep '.chk' in place [true, false]
   allowed_exten=( 'com' 'gjf' )     # allowed file extensions
   executable='g09'                  # executable command
-  modules=( 'gaussian/g09_D01' )
+  unload_modules=( 'gaussian' )
+  load_modules=( 'gaussian/g09_D01' )
 
 #######################################################################
 
@@ -200,7 +201,10 @@ for file in "$@"; do
   echo ""                                     >> ${jobname}
 
   # modules
-  for mod in ${modules[@]}; do
+  for mod in ${unload_modules[@]}; do
+    echo "module unload $mod"                 >> ${jobname}
+  done
+  for mod in ${load_modules[@]}; do
     echo "module load $mod"                   >> ${jobname}
   done
   echo ""                                     >> ${jobname}
