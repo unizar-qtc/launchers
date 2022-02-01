@@ -2,8 +2,8 @@
 
 # File: GMX_replicater
 # Description : Build and launch a sequential equilibration and production job in GROMACS
-# Version : 1.3
-# Last update : 09-12-2021
+# Version : 1.4
+# Last update : 01-02-2022
 
 #######################################################################
 ##                          GMX_replicater                           ##
@@ -34,7 +34,6 @@
   executable='gmx_mpi'              # executable command
   modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
 
-  prefix_path_def='.'               # path to look for files
   topol_def='topol.top'             # topology file
 
 #######################################################################
@@ -72,7 +71,6 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo " --equi  <.mdp> ...                equilibration phase (can be multiple, run in order)"
       echo " --prod  <.mdp>                    production phase"
       echo " --index  <.ndx>                   index file"
-      echo " --prefix_path  <path>             path to look for files (def: '$prefix_path_def')"
       echo
       echo "NAMING OPTIONS:"
       echo " --name  <name>                    name for production (def: filename of production's .mdp)"
@@ -108,9 +106,6 @@ while [ $# -gt 0 ]; do     # until no more arguments
       shift ;;
     --index)
       index=$1
-      shift ;;
-    --prefix_path)
-      ppath=$1
       shift ;;
     --name)
       name_over=$1
@@ -154,13 +149,10 @@ nodes=${nodes:=$nodes_def}
 cores=${cores:=$cores_def}
 memory=${memory:=$memory_def}
 gpus=${gpus:=$gpus_def}
-ppath=${ppath:=$prefix_path_def}
 topol=${topol:=$topol_def}
 
-# calculation files
-topol=$ppath/$topol
-coord=$ppath/$coord
-if [ ! -z "$index" ]; then index="-n $ppath/$index"; fi
+# check index file
+if [ ! -z "$index" ]; then index="-n $index"; fi
 
 # check minimal mandadory options
 if [ -z "$prod_mdp" ] || [ -z "$coord" ]; then
@@ -229,7 +221,7 @@ for replica in ${replica_list[@]}; do
   if [ ! -z "$equi_mdp" ]; then
     for equi in ${equi_mdp[@]}; do
       equi_name=${equi##*/}; equi_name=${equi_name%.*}${replica}
-      echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $ppath/$equi -o ${equi_name}.tpr $index" >> ${jobname}
+      echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $equi -o ${equi_name}.tpr $index" >> ${jobname}
       # use checkpoint if not the first run
       if [ ! -z "$equi_prev" ]; then
         echo -n " -t ${equi_prev}.cpt" >> ${jobname}
@@ -245,7 +237,7 @@ for replica in ${replica_list[@]}; do
   fi
 
   # production
-  echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $ppath/$prod_mdp -o ${name}.tpr $index" >> ${jobname}
+  echo -n "$executable grompp -v -p $topol -c $crd -r $crd -f $prod_mdp -o ${name}.tpr $index" >> ${jobname}
   # use checkpoint if not the first run
   if [ ! -z "$equi_prev" ]; then
     echo -n " -t ${equi_prev}.cpt" >> ${jobname}
