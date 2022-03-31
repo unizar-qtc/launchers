@@ -2,8 +2,8 @@
 
 # File: GMX_launcher
 # Description : GROMACS .tpr launcher
-# Version : 1.4
-# Last update : 09-12-2021
+# Version : 1.5
+# Last update : 31-03-2022
 
 #######################################################################
 ##                           GMX_launcher                            ##
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.4'
+  __version__='1.5'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -167,52 +167,53 @@ for file in "$@"; do
 
   ## write .job file
   jobname="${namef}.job"
-  echo "#!/bin/bash"                          >  ${jobname}
-  echo ""                                     >> ${jobname} ## SGE ######################
-  echo "#$ -N ${namef}"                       >> ${jobname} # Job name
-  echo "#$ -e $msgf/${namef}.msg"             >> ${jobname} # Error mesages path
-  echo "#$ -o $msgf/${namef}.msg"             >> ${jobname} # Output mesages path
-  echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
-  echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
-  if [ "$cores" != '1' ]; then
-    echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
-  fi
-  echo ""                                     >> ${jobname} ## SLURM ####################
-  echo "#SBATCH -J ${namef}"                  >> ${jobname} # Job name
-  echo "#SBATCH -e $msgf/${namef}.msg"        >> ${jobname} # Error mesages path
-  echo "#SBATCH -o $msgf/${namef}.msg"        >> ${jobname} # Output mesages path
-  echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
-  echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
-  echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
-  echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
-  if [ "$queue_slurm" == 'gpu' ]; then
-    echo "#SBATCH --gres=gpu:${gpus}"         >> ${jobname} # GPUs
-  fi
-  echo ""                                     >> ${jobname}
+  printf "#!/bin/bash\n\n" > ${jobname}
+  {
+    # SGE -------------------------------------------------------------
+    echo "#$ -N ${namef}"                        # Job name
+    echo "#$ -e $msgf/${namef}.msg"              # Error mesages path
+    echo "#$ -o $msgf/${namef}.msg"              # Output mesages path
+    echo "#$ -q $queue_sge"                      # Queue name
+    echo "#$ -R yes"                             # Reservation enabled
+    echo "#$ -cwd"                               # Run in current working directory
+    if [ "$cores" != '1' ]; then
+      echo "#$ -pe mp$cores $cores"              # Parallel environment (cores)
+    fi
+    echo ""
+    # SLURM -----------------------------------------------------------
+    echo "#SBATCH -J ${namef}"                   # Job name
+    echo "#SBATCH -e $msgf/${namef}.msg"         # Error mesages path
+    echo "#SBATCH -o $msgf/${namef}.msg"         # Output mesages path
+    echo "#SBATCH -p ${queue_slurm}"             # Queue name
+    echo "#SBATCH -N ${nodes}"                   # nodes
+    echo "#SBATCH --ntasks-per-node=${cores}"    # cores
+    echo "#SBATCH --mem=${memory}"               # memory
+    if [ "$queue_slurm" == 'gpu' ]; then
+      echo "#SBATCH --gres=gpu:${gpus}"          # GPUs
+    fi
+    echo ""
 
-  # modules
-  for mod in ${modules[@]}; do
-    echo "module load $mod"                   >> ${jobname}
-  done
-  echo ""                                     >> ${jobname}
+    # modules
+    for mod in ${modules[@]}; do
+      echo "module load $mod"
+    done
 
-  echo "cd $origin"                           >> ${jobname}
-  echo ""                                     >> ${jobname}
+    printf "\ncd $origin \n\n"
 
-  # create new extended tpr if proper variable set
-  if [ ! -z "${extend}" ]; then
-    echo "$executable convert-tpr -s $file -o ${namef}.tpr -extend $extend" >> ${jobname}
-    file=${namef}.tpr
-  fi
+    # create new extended tpr if proper variable set
+    if [ ! -z "${extend}" ]; then
+      echo "$executable convert-tpr -s $file -o ${namef}.tpr -extend $extend"
+      file=${namef}.tpr
+    fi
 
-  # main execution
-  echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"  >> ${jobname}
+    # main execution
+    echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"
 
-  # remove 'part*' nomenclature
-  if [ ! -z "$check_command" ]; then
-    echo "" >> ${jobname}
-    echo "for i in ${namef}.part*; do j=\${i%.*}; mv \$i \${j%.*}.\${i##*.}; done" >> ${jobname}
-  fi
+    # remove 'part*' nomenclature
+    if [ ! -z "$check_command" ]; then
+      echo -e "\nfor i in ${namef}.part*; do j=\${i%.*}; mv \$i \${j%.*}.\${i##*.}; done"
+    fi
+  } >> ${jobname}
 
   ## launch
   if [ "$dry_flg" == "true" ]; then

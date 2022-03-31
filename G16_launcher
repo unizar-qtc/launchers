@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # File: G16_launcher
-# Description : Gaussian 16 job launcher
-# Version : 1.0
-# Last update : 09-12-2021
+# Description : Gaussian 09 job launcher
+# Version : 1.1
+# Last update : 31-03-2022
 
 #######################################################################
 ##                           G16_launcher                            ##
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.0'
+  __version__='1.1'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -73,12 +73,13 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
-      echo " -chk                              keep .chk file in current directory (def: $chk_flg)"
+      echo " -chk                              keep .chk file in current directory and"
+      echo "                                   generate a .fchk at the end (def: $chk_flg)"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
-      echo " <file.com> ...                    gaussian input file"
+      echo " <file.com> ...                    gaussian input file (.com / .gjf)"
       echo "                                   must be the last argument, can me multiple"
       exit ;;
     --nodes)
@@ -100,7 +101,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       queue_slurm=$1
       shift
       ;;
-    -chk)               # force '.chk' in place and create '.fchk'
+    -chk)               # force '.chk' in CWD and create '.fchk'
       chk_flg=true
       chkf=$PWD
       ;;
@@ -180,41 +181,45 @@ for file in "$@"; do
 
   ## write .job file
   jobname="${name}.job"
-  echo "#!/bin/bash"                          >  ${jobname}
-  echo ""                                     >> ${jobname} ## SGE ######################
-  echo "#$ -N ${name}"                        >> ${jobname} # Job name
-  echo "#$ -e $msgf/${name}.msg"              >> ${jobname} # Error mesages path
-  echo "#$ -o $msgf/${name}.msg"              >> ${jobname} # Output mesages path
-  echo "#$ -q $queue_sge"                     >> ${jobname} # Queue name
-  echo "#$ -R yes"                            >> ${jobname} # Reservation enabled
-  if [ "$cores" != '1' ]; then
-    echo "#$ -pe mp$cores $cores"             >> ${jobname} # Parallel environment (cores)
-  fi
-  echo ""                                     >> ${jobname} ## SLURM ####################
-  echo "#SBATCH -J ${name}"                   >> ${jobname} # Job name
-  echo "#SBATCH -e $msgf/${name}.msg"         >> ${jobname} # Error mesages path
-  echo "#SBATCH -o $msgf/${name}.msg"         >> ${jobname} # Output mesages path
-  echo "#SBATCH -p ${queue_slurm}"            >> ${jobname} # Queue name
-  echo "#SBATCH -N ${nodes}"                  >> ${jobname} # nodes
-  echo "#SBATCH --ntasks-per-node=${cores}"   >> ${jobname} # cores
-  echo "#SBATCH --mem=${memory}"              >> ${jobname} # memory
-  echo ""                                     >> ${jobname}
+  printf "#!/bin/bash\n\n" > ${jobname}
+  {
+    # SGE -------------------------------------------------------------
+    echo "#$ -N ${name}"                         # Job name
+    echo "#$ -e $msgf/${name}.msg"               # Error mesages path
+    echo "#$ -o $msgf/${name}.msg"               # Output mesages path
+    echo "#$ -q $queue_sge"                      # Queue name
+    echo "#$ -R yes"                             # Reservation enabled
+    echo "#$ -cwd"                               # Run in current working directory
+    if [ "$cores" != '1' ]; then
+      echo "#$ -pe mp$cores $cores"              # Parallel environment (cores)
+    fi
+    echo ""
+    # SLURM -----------------------------------------------------------
+    echo "#SBATCH -J ${name}"                    # Job name
+    echo "#SBATCH -e $msgf/${name}.msg"          # Error mesages path
+    echo "#SBATCH -o $msgf/${name}.msg"          # Output mesages path
+    echo "#SBATCH -p ${queue_slurm}"             # Queue name
+    echo "#SBATCH -N ${nodes}"                   # nodes
+    echo "#SBATCH --ntasks-per-node=${cores}"    # cores
+    echo "#SBATCH --mem=${memory}"               # memory
+    echo ""
 
-  # modules
-  for mod in ${unload_modules[@]}; do
-    echo "module unload $mod"                 >> ${jobname}
-  done
-  for mod in ${load_modules[@]}; do
-    echo "module load $mod"                   >> ${jobname}
-  done
-  echo ""                                     >> ${jobname}
+    # modules
+    for mod in ${unload_modules[@]}; do
+      echo "module unload $mod"
+    done
+    for mod in ${load_modules[@]}; do
+      echo "module load $mod"
+    done
+    echo ""
 
-  # main execution
-  echo "${executable} < ${origin}/$file > ${destination}/${name}.log" >> ${jobname}
+    # main execution
+    echo "${executable} < ${origin}/$file > ${destination}/${name}.log"
 
-  if [ "$chk_flg" == "true" ]; then
-    echo "formchk ${chk} ${chk%.*}.fchk" >> ${jobname}
-  fi
+    if [ "$chk_flg" == "true" ]; then
+      echo "formchk ${chk} ${chk%.*}.fchk"
+    fi
+  } >> ${jobname}
 
   ## launch
   if [ "$dry_flg" == "true" ]; then
