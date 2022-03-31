@@ -148,36 +148,33 @@ for file in "$@"; do
   # add last line (prevent Gaussian IO error)
   echo "" >> $file
 
-  ## computational parameters
-  # check for '--Link1--' (if it exist, skip and keep file intact)
-  if [ "`awk '/^--Link1--/ {print}' $file`" == "" ]; then
-    # read parameters beginning with % to an array
-    parameters=($(awk '/^%/ {print}' $file))
-    # check content of each parameter
-    for param in "${parameters[@]}"; do
-      param_name="${param%=*}"
-      case ${param_name,,} in
-        '%nprocshared'|'%nproc')       # cores parameter
-          if [ "$cores_flg" != 'true' ]; then cores=${param##*=}; fi   # read from file
-          ;;
-        '%mem')                        # memory parameter
-          if [ "$memory_flg" != 'true' ]; then memory=${param##*=}; fi
-          ;;
-        '%chk')                        # chk parameter
-          if [ "$chk_flg" != 'true' ]; then chk=${param##*=}; fi
-          ;;
-        *)                             # next parameter if not recognized
-          continue
-          ;;
-      esac
-      sed -i "/$param_name/d" $file  # delete parameter from file
-    done
-
-    # write options
-    sed -i "1 i %Mem=$memory" $file
-    sed -i "1 i %NProcShared=$cores" $file
-    sed -i "1 i %Chk=$chk" $file
-  fi
+  ## computational parameters (Link0)
+  # read parameters beginning with % to an array
+  parameters=($(awk '/^%/ {print}' $file))
+  # check content of each parameter from last to first
+  for (( i=${#parameters[@]}-1 ; i>=0 ; i-- )); do
+    param="${parameters[$i]}"
+    param_name="${param%=*}"
+    case ${param_name,,} in
+      '%nprocshared'|'%nproc')       # cores parameter
+        if [ "$cores_flg" != 'true' ]; then cores=${param##*=}; fi   # read from file
+        ;;
+      '%mem')                        # memory parameter
+        if [ "$memory_flg" != 'true' ]; then memory=${param##*=}; fi
+        ;;
+      '%chk')                        # chk parameter
+        if [ "$chk_flg" != 'true' ]; then chk=${param##*=}; fi
+        ;;
+      *)                             # next parameter if not recognized
+        continue
+        ;;
+    esac
+    sed -i "/$param_name/d" $file  # delete parameter from file
+  done
+  # write new Link0 parameters
+  link0="%Chk=$chk\n\%Mem=$memory\n%NProcShared=$cores"
+  sed -i "1 i $link0" $file            # insert at the beginning of file
+  sed -i "/^--Link1--/a $link0" $file  # insert after every Link1
 
   ## write .job file
   jobname="${name}.job"
@@ -199,9 +196,9 @@ for file in "$@"; do
     echo "#SBATCH -e $msgf/${name}.msg"          # Error mesages path
     echo "#SBATCH -o $msgf/${name}.msg"          # Output mesages path
     echo "#SBATCH -p ${queue_slurm}"             # Queue name
-    echo "#SBATCH -N ${nodes}"                   # nodes
-    echo "#SBATCH --ntasks-per-node=${cores}"    # cores
-    echo "#SBATCH --mem=${memory}"               # memory
+    echo "#SBATCH -N ${nodes}"                   # Nodes
+    echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
+    echo "#SBATCH --mem=${memory}"               # Memory
     echo ""
 
     # modules
