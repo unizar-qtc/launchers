@@ -1,0 +1,10 @@
+#!/bin/bash
+
+## BASH ENVIRONMENT SETUP #############################################
+# source this file in the .bashrc
+
+# get launchers directory (path to this file)
+launchers_path=$(dirname $(readlink -f ${BASH_SOURCE[0]}))
+
+# include in PATH
+export PATH=$PATH:${launchers_path}
