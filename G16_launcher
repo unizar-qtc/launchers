@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # File: G16_launcher
-# Description : Gaussian 09 job launcher
-# Version : 1.1
-# Last update : 31-03-2022
+# Description : Gaussian 16 job launcher
+# Version : 1.2
+# Last update : 04-07-2022
 
 #######################################################################
 ##                           G16_launcher                            ##
@@ -11,7 +11,7 @@
 # Launcher for multiple jobs at a time and set computational variables
 #
 # USAGE:               G16_launcher [-c #cores] [-m #memory] [-q queue]
-#                                          [-chk] [--dry] [-h | --help]
+#                            [--ign-chk] [--fchk] [--dry] [-h | --help]
 #                                         <file1.com> <file2.com> <...>
 #
 # all the '-*' arguments must preceed the input files
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.1'
+  __version__='1.2'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -34,9 +34,9 @@
   destination=$PWD                  # path to store the outputs
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
-  chkf=$HOME/chk                    # path to store '.chk'
   dry_flg=false                     # dry run: create .job file but do not launch [true, false]
-  chk_flg=false                     # keep '.chk' in place [true, false]
+  fchk_flg=false                    # generate a .fchk at the end
+  ign_chk_flg=false                 # ignore '.chk' path in input files [true, false]
   allowed_exten=( 'com' 'gjf' )     # allowed file extensions
   executable='g16'                  # executable command
   unload_modules=( 'gaussian' )
@@ -53,7 +53,6 @@ fi
 ## Checks existence of folders or create them
 if [[ ! -d $msgf ]]; then mkdir $msgf; fi
 if [[ ! -d $jobf ]]; then mkdir $jobf; fi
-if [[ ! -d $chkf ]]; then mkdir $chkf; fi
 
 ## Checks for optional arguments
 while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
@@ -73,8 +72,8 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
-      echo " -chk                              keep .chk file in current directory and"
-      echo "                                   generate a .fchk at the end (def: $chk_flg)"
+      echo " --ign-chk                         ignore existing .chk path in input file"
+      echo " --fchk                            generate a .fchk after the job is finished"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -101,9 +100,11 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       queue_slurm=$1
       shift
       ;;
-    -chk)               # force '.chk' in CWD and create '.fchk'
-      chk_flg=true
-      chkf=$PWD
+    --ign-chk)          # ignore '.chk' path in input files
+      ign_chk_flg=true
+      ;;
+    --fchk)             # create '.fchk'
+      fchk_flg=true
       ;;
     --dry)              # dry run
       dry_flg=true
@@ -163,7 +164,7 @@ for file in "$@"; do
         if [ "$memory_flg" != 'true' ]; then memory=${param##*=}; fi
         ;;
       '%chk')                        # chk parameter
-        if [ "$chk_flg" != 'true' ]; then chk=${param##*=}; fi
+        if [ "$ign_chk_flg" != 'true' ]; then chk=${param##*=}; fi
         ;;
       *)                             # next parameter if not recognized
         continue
@@ -213,7 +214,7 @@ for file in "$@"; do
     # main execution
     echo "${executable} < ${origin}/$file > ${destination}/${name}.log"
 
-    if [ "$chk_flg" == "true" ]; then
+    if [ "$fchk_flg" == "true" ]; then
       echo "formchk ${chk} ${chk%.*}.fchk"
     fi
   } >> ${jobname}
