@@ -129,7 +129,7 @@ for file in "$@"; do
   # initializate values
   cores=$cores_in
   memory=$memory_in
-  chk="${chkf}/${name}.chk"
+  chk="${name}.chk"
 
   # check file existence, if starts with a digit and extension
   if [ ! -f $file ]; then
