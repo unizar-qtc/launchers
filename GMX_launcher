@@ -2,8 +2,8 @@
 
 # File: GMX_launcher
 # Description : GROMACS .tpr launcher
-# Version : 1.5
-# Last update : 31-03-2022
+# Version : 1.6
+# Last update : 09-10-2022
 
 #######################################################################
 ##                           GMX_launcher                            ##
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.5'
+  __version__='1.6'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
@@ -71,20 +71,20 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
-      echo " -cpi  <file.cpt>                  use checkpoint file to continue"
-      echo " -extend  <#ps>                    extend runtime by creating a new tpr [ps]"
+      echo " --cpi  <file.cpt>                 use checkpoint file to continue"
+      echo " --extend  <#ps>                   extend runtime by this # ps (creates a new .tpr)"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "NAMING OPTIONS:"
-      echo " -r  <#>                           replica number (naming: 'file_r#' / 'file_r#_#')"
+      echo " -r | --replica  <#>               replica number (naming: 'file_r#' / 'file_r#_#')"
       echo " -n  <#>                           run number (naming: 'file_#' / 'file_r#_#')"
       echo
       echo "INPUT:"
       echo " <file.tpr> ...                    GROMACS input file"
       echo "                                   must be the last argument, can be multiple"
       exit ;;
-    -r)
+    -r|--replica)
       runr="_r$1"
       shift
       ;;
@@ -113,12 +113,12 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       queue_slurm=$1
       shift
       ;;
-    -cpi)               # use checkpoint file
+    --cpi)              # use checkpoint file
       cpt=$1
       check_command="-cpi $cpt -noappend"
       shift
       ;;
-    -extend)            # extend runtime and create new tpr
+    --extend)           # extend runtime and create new tpr
       extend=$1
       shift
       ;;
