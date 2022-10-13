@@ -9,7 +9,7 @@ For a more detailed explanation of the usage and examples, click on each launche
 | launcher | software called | input file extensions | memento | cierzo | remarks |
 | --- | :---: | :---: | :---: | :---: | --- |
 | [`G09_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 09 | *.com* / *.gjf* | :heavy_check_mark: | :heavy_check_mark: | |
-| [`G16_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 16 | *.com* / *.gjf* | :x: | :heavy_check_mark: | |
+| [`G16_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 16 | *.com* / *.gjf* | :heavy_check_mark: | :heavy_check_mark: | |
 | `GMX_launcher` | GROMACS | *.tpr* [*.cpt*] | :x: | :heavy_check_mark: | |
 | `GMX_replicater` | GROMACS | *.mdp* *.gro* [*.ndx* *.top*] | :x: | :heavy_check_mark: | |
 | `ORCA_launcher` | ORCA | *.inp* | :heavy_check_mark: | :heavy_check_mark: | |
