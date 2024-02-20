@@ -6,13 +6,13 @@ To get a brief description of a launcher usage and options in the command line, 
 
 For a more detailed explanation of the usage and examples, click on each launcher to go to its specific documentation.
 
-| launcher | software called | input file extensions | memento | cierzo | remarks |
+| launcher | software called | input file extensions | cierzo | agustina | remarks |
 | --- | :---: | :---: | :---: | :---: | --- |
-| [`G09_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 09 | *.com* / *.gjf* | :heavy_check_mark: | :heavy_check_mark: | |
+| [`G09_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 09 | *.com* / *.gjf* | :heavy_check_mark: | :x: | |
 | [`G16_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 16 | *.com* / *.gjf* | :heavy_check_mark: | :heavy_check_mark: | |
-| `GMX_launcher` | GROMACS | *.tpr* [*.cpt*] | :x: | :heavy_check_mark: | |
-| `GMX_replicater` | GROMACS | *.mdp* *.gro* [*.ndx* *.top*] | :x: | :heavy_check_mark: | |
+| `GMX_launcher` | GROMACS | *.tpr* [*.cpt*] | :heavy_check_mark: | :x: | |
+| `GMX_replicater` | GROMACS | *.mdp* *.gro* [*.ndx* *.top*] | :heavy_check_mark: | :x: | |
 | `ORCA_launcher` | ORCA | *.inp* | :heavy_check_mark: | :heavy_check_mark: | |
-| `JAGUAR_launcher` | Jaguar | *.in* | :heavy_check_mark: | :heavy_check_mark: | |
 | `SCRIPT_launcher` | bash | *.sh* | :heavy_check_mark: | :heavy_check_mark: | |
 | `INTERACTIVE_launcher` | bash | *-* | :heavy_check_mark: | :heavy_check_mark: | |
+

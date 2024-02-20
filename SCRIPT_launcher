@@ -2,16 +2,16 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.3
-# Last update : 19-07-2023
+# Version : 1.4
+# Last update : 20-02-2024
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
 #######################################################################
 # Launcher for generic scripts on calculation nodes through queues
 #
-# USAGE:                       SCRIPT_launcher [-c #cores] [-m #memory]
-#                                                 [-g #gpus] [-q queue]
+# USAGE:                   SCRIPT_launcher [--nodes #nodes] [-c #cores]
+#                       [-m #memory] [-g #gpus] [-q queue] [-a account]
 #                                                 [--dry] [-h | --help]
 #                                                           <script.sh>
 #
@@ -20,15 +20,15 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.3'
+  __version__='1.4'
 
-  nodes_def=1                       # number of nodes (only of SLURM)
+  nodes_def=1                       # min number of nodes
   cores_def=1                       # number of cores / parallel enviroment
-  memory_def='2GB'                  # RAM memory (100MW = 800MB)
+  memory_def=''                     # RAM memory (100MW = 800MB)
   gpus_def=0                        # number of GPU cards
 
-  queue_sge='BIFIZCAM'              # name of queue to submit
-  queue_slurm='test'                # name of queue to submit
+  queue_def='thin'                  # name of queue to submit
+  account_def='molcat'              # name of account
 
   dry_flg=false                     # dry run: display command but do not launch [true, false]
 
@@ -48,18 +48,19 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo "USAGE:   SCRIPT_launcher [options]"
       echo
       echo "OPTIONS:"
-      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
-      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: all available in the node)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
-      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -q | --queue  <queue>             queue name (def: $queue)"
+      echo " -a | --account <account>          account name (def: $account_def)"
       echo " --dry                             dry run: display command but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
       echo " <script.sh> [arg]                 shell script file to be launched"
       echo "                                   must be the last argument, can be followed by arguments"
-      echo "                                   if not exists, a file named '<script>.job' will be created"
+      echo "                                   if not exists, a file named '<script>.sh' will be created"
       echo "                                   stdout/stderr will be redirected to 'script.out'"
       exit ;;
     --nodes)
@@ -71,7 +72,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -m|--memory)
-      memory=$1
+      memory="--mem=$1"
       shift
       ;;
     -g|--gpus)
@@ -79,8 +80,11 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -q|--queue)
-      queue_sge=$1
-      queue_slurm=$1
+      queue_def=$1
+      shift
+      ;;
+    -a|--account)
+      account=$1
       shift
       ;;
     --dry)              # dry run
@@ -97,6 +101,8 @@ nodes=${nodes:=$nodes_def}
 cores=${cores:=$cores_def}
 memory=${memory:=$memory_def}
 gpus=${gpus:=$gpus_def}
+queue=${queue:=$queue_def}
+account=${account:=$account_def}
 
 ## read script file from input
 file=$1
@@ -109,49 +115,26 @@ if [[ ${name} =~ ^[0-9] ]]; then
 fi
 
 ## build launch commands
-# SGE
-executable_sge="qsub \
-                -N $name \
-                -e $PWD/${name}.out \
-                -o $PWD/${name}.out \
-                -q $queue_sge"
-if [ "$cores" != '1' ]; then        # single core case
-  executable_sge=$executable_sge" -pe mp$cores $cores"
+executable="sbatch \
+              -J $name \
+              -e $PWD/${name}.out \
+              -o $PWD/${name}.out \
+              -p $queue \
+              -A $account \
+              -N $nodes \
+              -c $cores \
+              $memory"
+if [ "$queue" == 'gpu' ]; then
+  executable=$executable" --gres=gpu:$gpus"
 fi
-# SLURM
-executable_slurm="sbatch \
-                  -J $name \
-                  -e $PWD/${name}.out \
-                  -o $PWD/${name}.out \
-                  -p $queue_slurm \
-                  -N $nodes \
-                  --ntasks-per-node=$cores \
-                  --mem=$memory"
-if [ "$queue_slurm" == 'gpu' ]; then
-  executable_slurm=$executable_slurm" --gres=gpu:$gpus"
-fi
-
-## detect queue manager
-#TODO: make independent from BIFI hostnames (memento/cierzo)
-case $HOSTNAME in
-  'memento')
-    executable=$executable_sge
-    ;;
-  'cierzo')
-    executable=$executable_slurm
-    ;;
-  *)
-    echo "ERROR: Unknown '$HOSTNAME' hostname. Please, execute in memento/cierzo."
-    ;;
-esac
 
 ## check script file
 if [ ! -f $file ]; then
-  echo "WARNING: '$file' file does not exist. Creating '$name.job'."
-  echo "#!/bin/bash" > $name.job
-  echo "$@" >> $name.job
-  chmod +x $name.job
-  executable="$executable $name.job"
+  echo "WARNING: '$file' file does not exist. Creating '$name.sh'."
+  echo "#!/bin/bash" > $name.sh
+  echo "$@" >> $name.sh
+  chmod +x $name.sh
+  executable="$executable $name.sh"
 else
   executable="$executable $@"
 fi
