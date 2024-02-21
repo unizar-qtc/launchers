@@ -22,6 +22,12 @@ git clone https://github.com/unizar-qtc/launchers
 echo "source $PWD/launchers/launchers.rc" >> $HOME/.bashrc
 ```
 
+#### Default values
+Any of the default values used by the launchers can be modified using `launchers_def.sh`. This script will modify the default values hard-coded in all the launchers. The available values to be modified are: nodes, cores, memory, gpus, queue, account. To use it:
+```bash
+bash launchers_def.sh <variable> <value>
+```
+
 ### Usage
 To launch a calculation type the corresponding launcher script followed by additional options (if any) and finally the one or several input files.
 
