@@ -2,8 +2,8 @@
 
 # File: GMX_replicater
 # Description : Build and launch a sequential equilibration and production job in GROMACS
-# Version : 1.5
-# Last update : 31-03-2022
+# Version : 1.6
+# Last update : 21-02-2024
 
 #######################################################################
 ##                          GMX_replicater                           ##
@@ -11,28 +11,30 @@
 # Script to build and launch a sequential equilibration
 # and production job in GROMACS
 #
-# USAGE:  GMX_replicater [options]
+# USAGE:       GMX_replicater [--nodes #nodes] [-c #cores] [-m #memory]
+#                                    [-g #gpus] [-q queue] [-a account]
+#                                                             [options]
+#                                                 [--dry] [-h | --help]
 #
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.5'
+  __version__='1.6'
 
   nodes_def=1                       # number of nodes (only of SLURM)
-  cores_def=8                       # number of cores / parallel enviroment
+  cores_def=16                      # number of cores / parallel enviroment
   memory_def='16GB'                 # RAM memory (100MW = 800MB)
-  gpus_def=2                        # number of GPU cards
+  gpus_def=0                        # number of GPU cards
 
-  queue_sge='BIFIZCAM'              # name of queue to submit
-  queue_slurm='gpu'                 # name of queue to submit
+  queue_def='thin'                  # name of queue to submit
+  account_def='molcat'              # name of account
 
-  origin=$PWD                       # path of the input files
-  destination=$PWD                  # path to store the outputs
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
   dry_flg=false                     # dry run: create .job file but do not launch [true, false]
-  executable='gmx_mpi'              # executable command
-  modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
+  executable='gmx'                  # executable command
+  unload_modules=( 'gromacs')
+  load_modules=( 'gromacs/2023.4' )
 
   topol_def='topol.top'             # topology file
 
@@ -57,9 +59,8 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo "---------------  GMX_replicater  ---------------"
       echo "               GROMACS REPLICATER"
       echo
-      echo "Script to build and launch a sequential equilibration"
-      echo "and production job in GROMACS."
-      echo "At least one .gro and .mdp are needed."
+      echo "Script to build and launch a sequential equilibration and production job in GROMACS."
+      echo "At least one .gro, .top and .mdp are needed."
       echo
       echo "Version: $__version__"
       echo
@@ -74,14 +75,15 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo
       echo "NAMING OPTIONS:"
       echo " --name  <name>                    name for production (def: filename of production's .mdp)"
-      echo " -r | --replica  <#> ...           replica number (can be multiple) (naming: '${name_def}_r#')"
+      echo " -r | --replica  <#> ...           replica number (can be multiple) (naming: '_r#')"
       echo
       echo "COMPUTING OPTIONS:"
-      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
-      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -q | --queue  <queue>             queue name (def: $queue_def)"
+      echo " -a | --account <account>          account name (def: $account_def)"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -132,9 +134,13 @@ while [ $# -gt 0 ]; do     # until no more arguments
       gpus=$1
       shift ;;
     -q|--queue)
-      queue_sge=$1
-      queue_slurm=$1
-      shift ;;
+      queue_def=$1
+      shift
+      ;;
+    -a|--account)
+      account=$1
+      shift
+      ;;
     --dry)              # dry run
       dry_flg=true
       ;;
@@ -149,6 +155,8 @@ nodes=${nodes:=$nodes_def}
 cores=${cores:=$cores_def}
 memory=${memory:=$memory_def}
 gpus=${gpus:=$gpus_def}
+queue=${queue:=$queue_def}
+account=${account:=$account_def}
 topol=${topol:=$topol_def}
 
 # check index file
@@ -184,36 +192,28 @@ for replica in ${replica_list[@]}; do
   jobname="${name}.job"
   printf "#!/bin/bash\n\n" > ${jobname}
   {
-    # SGE -------------------------------------------------------------
-    echo "#$ -N ${name}"                         # Job name
-    echo "#$ -e $msgf/${name}.msg"               # Error mesages path
-    echo "#$ -o $msgf/${name}.msg"               # Output mesages path
-    echo "#$ -q $queue_sge"                      # Queue name
-    echo "#$ -R yes"                             # Reservation enabled
-    echo "#$ -cwd"                               # Run in current working directory
-    if [ "$cores" != '1' ]; then
-      echo "#$ -pe mp$cores $cores"              # Parallel environment (cores)
-    fi
-    echo ""
     # SLURM -----------------------------------------------------------
-    echo "#SBATCH -J ${name}"                    # Job name
-    echo "#SBATCH -e $msgf/${name}.msg"          # Error mesages path
-    echo "#SBATCH -o $msgf/${name}.msg"          # Output mesages path
-    echo "#SBATCH -p ${queue_slurm}"             # Queue name
-    echo "#SBATCH -N ${nodes}"                   # nodes
-    echo "#SBATCH --ntasks-per-node=${cores}"    # cores
-    echo "#SBATCH --mem=${memory}"               # memory
+    echo "#SBATCH -J ${namef}"                   # Job name
+    echo "#SBATCH -e $msgf/${namef}.msg"         # Error mesages path
+    echo "#SBATCH -o $msgf/${namef}.msg"         # Output mesages path
+    echo "#SBATCH -p ${queue}"                   # Queue name
+    echo "#SBATCH -A ${account}"                 # Account name
+    echo "#SBATCH -N ${nodes}"                   # Nodes
+    echo "#SBATCH -c ${cores}"                   # Cores
+    echo "#SBATCH --mem=${memory}"               # Memory
     if [ "$queue_slurm" == 'gpu' ]; then
       echo "#SBATCH --gres=gpu:${gpus}"          # GPUs
     fi
     echo ""
 
     # modules
-    for mod in ${modules[@]}; do
+    for mod in ${unload_modules[@]}; do
+      echo "module unload $mod"
+    done
+    for mod in ${load_modules[@]}; do
       echo "module load $mod"
     done
-
-    printf "\ncd $origin \n\n"
+    echo ""
 
     unset equi_prev
     crd=$coord
@@ -227,7 +227,7 @@ for replica in ${replica_list[@]}; do
         if [ ! -z "$equi_prev" ]; then
           printf " -t ${equi_prev}.cpt"
         fi
-        printf "\nmpirun -np $(($nodes * $cores)) $executable mdrun -s ${equi_name}.tpr -deffnm ${equi_name} \n\n"
+        printf "\n$executable mdrun -nt $(($nodes * $cores)) -s ${equi_name}.tpr -deffnm ${equi_name} \n\n"
         crd=${equi_name}.gro
         equi_prev=${equi_name}
       done
@@ -241,15 +241,14 @@ for replica in ${replica_list[@]}; do
     if [ ! -z "$equi_prev" ]; then
       printf " -t ${equi_prev}.cpt"
     fi
-    printf "\nmpirun -np $(($nodes * $cores)) $executable mdrun -s ${name}.tpr -deffnm ${name} \n"
+    printf "\n$executable mdrun -nt $(($nodes * $cores)) -s ${name}.tpr -deffnm ${name} \n"
   } >> ${jobname}
 
   ## launch
   if [ "$dry_flg" == "true" ]; then
     echo "Job file '${jobname}' succesfully created!"
   else
-    { qsub ${origin}/${jobname} ; } 2>/dev/null
-    { sbatch ${origin}/${jobname} ; } 2>/dev/null
-    mv ${origin}/${jobname} $jobf  # move .job file to proper folder
+    sbatch ${jobname}
+    mv ${jobname} $jobf  # move .job file to proper folder
   fi
 done

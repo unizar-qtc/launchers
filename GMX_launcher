@@ -2,15 +2,16 @@
 
 # File: GMX_launcher
 # Description : GROMACS .tpr launcher
-# Version : 1.6
-# Last update : 09-10-2022
+# Version : 1.7
+# Last update : 21-02-2024
 
 #######################################################################
 ##                           GMX_launcher                            ##
 #######################################################################
 # Launcher for GROMACS jobs from '.tpr' files
 #
-# USAGE:    GMX_launcher [-c #cores] [-m #memory] [-g #gpus] [-q queue]
+# USAGE:         GMX_launcher [--nodes #nodes] [-c #cores] [-m #memory]
+#                                    [-g #gpus] [-q queue] [-a account]
 #                             [-n #n] [-r #r] [-cpi .cpt] [-extend #ps]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.tpr> <file2.tpr> <...>
@@ -21,24 +22,23 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.6'
+  __version__='1.7'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=8                       # number of cores / parallel enviroment
   memory_def='16GB'                 # RAM memory (100MW = 800MB)
-  gpus_def=2                        # number of GPU cards
+  gpus_def=0                        # number of GPU cards
 
-  queue_sge='BIFIZCAM'              # name of queue to submit
-  queue_slurm='gpu'                 # name of queue to submit
+  queue_def='thin'                  # name of queue to submit
+  account_def='molcat'              # name of account
 
-  origin=$PWD                       # path of the input files
-  destination=$PWD                  # path to store the outputs
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
   dry_flg=false                     # dry run: create .job file but do not launch [true, false]
   allowed_exten=( 'tpr' )           # allowed file extensions
-  executable='gmx_mpi'              # executable command
-  modules=( 'shared' 'cuda90/toolkit/9.0.176' 'gromacs/2018.4' )
+  executable='gmx'                  # executable command
+  unload_modules=( 'gromacs')
+  load_modules=( 'gromacs/2023.4' )
 
 #######################################################################
 
@@ -66,11 +66,12 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo "USAGE:   GMX_launcher [options] <file.tpr> ..."
       echo
       echo "OPTIONS:"
-      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
-      echo " -q | --queue  <queue>             queue name (SGE: $queue_sge / SLURM: $queue_slurm)"
+      echo " -q | --queue  <queue>             queue name (def: $queue_def)"
+      echo " -a | --account <account>          account name (def: $account_def)"
       echo " --cpi  <file.cpt>                 use checkpoint file to continue"
       echo " --extend  <#ps>                   extend runtime by this # ps (creates a new .tpr)"
       echo " --dry                             dry run: create .job but do not launch"
@@ -109,8 +110,11 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -q|--queue)
-      queue_sge=$1
-      queue_slurm=$1
+      queue_def=$1
+      shift
+      ;;
+    -a|--account)
+      account=$1
       shift
       ;;
     --cpi)              # use checkpoint file
@@ -136,6 +140,8 @@ nodes=${nodes:=$nodes_def}
 cores=${cores:=$cores_def}
 memory=${memory:=$memory_def}
 gpus=${gpus:=$gpus_def}
+queue=${queue:=$queue_def}
+account=${account:=$account_def}
 
 ## go through every input file found in the arguments
 for file in "$@"; do
@@ -169,36 +175,28 @@ for file in "$@"; do
   jobname="${namef}.job"
   printf "#!/bin/bash\n\n" > ${jobname}
   {
-    # SGE -------------------------------------------------------------
-    echo "#$ -N ${namef}"                        # Job name
-    echo "#$ -e $msgf/${namef}.msg"              # Error mesages path
-    echo "#$ -o $msgf/${namef}.msg"              # Output mesages path
-    echo "#$ -q $queue_sge"                      # Queue name
-    echo "#$ -R yes"                             # Reservation enabled
-    echo "#$ -cwd"                               # Run in current working directory
-    if [ "$cores" != '1' ]; then
-      echo "#$ -pe mp$cores $cores"              # Parallel environment (cores)
-    fi
-    echo ""
     # SLURM -----------------------------------------------------------
     echo "#SBATCH -J ${namef}"                   # Job name
     echo "#SBATCH -e $msgf/${namef}.msg"         # Error mesages path
     echo "#SBATCH -o $msgf/${namef}.msg"         # Output mesages path
-    echo "#SBATCH -p ${queue_slurm}"             # Queue name
-    echo "#SBATCH -N ${nodes}"                   # nodes
-    echo "#SBATCH --ntasks-per-node=${cores}"    # cores
-    echo "#SBATCH --mem=${memory}"               # memory
-    if [ "$queue_slurm" == 'gpu' ]; then
+    echo "#SBATCH -p ${queue}"                   # Queue name
+    echo "#SBATCH -A ${account}"                 # Account name
+    echo "#SBATCH -N ${nodes}"                   # Nodes
+    echo "#SBATCH -c ${cores}"                   # Cores
+    echo "#SBATCH --mem=${memory}"               # Memory
+    if [ "$queue" == 'gpu' ]; then
       echo "#SBATCH --gres=gpu:${gpus}"          # GPUs
     fi
     echo ""
 
     # modules
-    for mod in ${modules[@]}; do
+    for mod in ${unload_modules[@]}; do
+      echo "module unload $mod"
+    done
+    for mod in ${load_modules[@]}; do
       echo "module load $mod"
     done
-
-    printf "\ncd $origin \n\n"
+    echo ""
 
     # create new extended tpr if proper variable set
     if [ ! -z "${extend}" ]; then
@@ -207,7 +205,7 @@ for file in "$@"; do
     fi
 
     # main execution
-    echo "mpirun -np $(($nodes * $cores)) $executable mdrun -s $file -deffnm ${namef} ${check_command}"
+    echo "$executable mdrun -nt $(($nodes * $cores)) -s $file -deffnm ${namef} ${check_command}"
 
     # remove 'part*' nomenclature
     if [ ! -z "$check_command" ]; then
@@ -219,8 +217,7 @@ for file in "$@"; do
   if [ "$dry_flg" == "true" ]; then
     echo "Job file '${jobname}' succesfully created!"
   else
-    { qsub ${origin}/${jobname} ; } 2>/dev/null
-    { sbatch ${origin}/${jobname} ; } 2>/dev/null
-    mv ${origin}/${jobname} $jobf  # move .job file to proper folder
+    sbatch ${jobname}
+    mv ${jobname} $jobf  # move .job file to proper folder
   fi
 done

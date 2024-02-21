@@ -3,7 +3,7 @@
 # File: INTERACTIVE_launcher
 # Description : INTERACTIVE session launcher
 # Version : 1.2
-# Last update : 20-02-2024
+# Last update : 21-02-2024
 
 #######################################################################
 ##                        INTERACTIVE_launcher                       ##
@@ -53,7 +53,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo "OPTIONS:"
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
-      echo " -m | --memory  <memory>           amount of RAM memory (def: all available in the node)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: all available)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"

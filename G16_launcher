@@ -3,7 +3,7 @@
 # File: G16_launcher
 # Description : Gaussian 16 job launcher
 # Version : 1.3
-# Last update : 20-02-2024
+# Last update : 21-02-2024
 
 #######################################################################
 ##                           G16_launcher                            ##
@@ -71,8 +71,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
-      echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
-      echo " -q | --queue  <queue>             queue name (def: $queue)"
+      echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"
       echo " --ign-chk                         ignore existing .chk path in input file"
       echo " --fchk                            generate a .fchk after the job is finished"

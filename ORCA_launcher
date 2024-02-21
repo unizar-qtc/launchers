@@ -3,14 +3,14 @@
 # File: ORCA_launcher
 # Description : ORCA job launcher
 # Version : 1.5
-# Last update : 20-02-2024
+# Last update : 21-02-2024
 
 #######################################################################
 ##                           ORCA_launcher                           ##
 #######################################################################
 # Launcher for multiple jobs at a time and set computational variables
 #
-# USAGE:        ORCA_launcher [--nodes #nodes] [-c #cores] [-m #memory] 
+# USAGE:        ORCA_launcher [--nodes #nodes] [-c #cores] [-m #memory]
 #                                       [-q queue] [-a account] [--dir]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.inp> <file2.inp> <...>
@@ -67,7 +67,6 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
-      echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (def: $queue)"
       echo " -a | --account <account>          account name (def: $account_def)"
       echo " --dir                             create a directory for the calculation and lauch there"

@@ -10,8 +10,8 @@ For a more detailed explanation of the usage and examples, click on each launche
 | --- | :---: | :---: | :---: | :---: | --- |
 | [`G09_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 09 | *.com* / *.gjf* | :heavy_check_mark: | :x: | |
 | [`G16_launcher`](./GAUSSIAN_launcher.rst) | Gaussian 16 | *.com* / *.gjf* | :heavy_check_mark: | :heavy_check_mark: | |
-| `GMX_launcher` | GROMACS | *.tpr* [*.cpt*] | :heavy_check_mark: | :x: | |
-| `GMX_replicater` | GROMACS | *.mdp* *.gro* [*.ndx* *.top*] | :heavy_check_mark: | :x: | |
+| `GMX_launcher` | GROMACS | *.tpr* [*.cpt*] | :heavy_check_mark: | :heavy_check_mark: | |
+| `GMX_replicater` | GROMACS | *.mdp* *.gro* [*.ndx* *.top*] | :heavy_check_mark: | :heavy_check_mark: | |
 | `ORCA_launcher` | ORCA | *.inp* | :heavy_check_mark: | :heavy_check_mark: | |
 | `SCRIPT_launcher` | bash | *.sh* | :heavy_check_mark: | :heavy_check_mark: | |
 | `INTERACTIVE_launcher` | bash | *-* | :heavy_check_mark: | :heavy_check_mark: | |
