@@ -1,0 +1,163 @@
+#!/bin/bash
+
+# File: VASP_launcher
+# Description : VASP job launcher
+# Version : 1.0
+# Last update : 27-02-2024
+
+#######################################################################
+##                           VASP_launcher                           ##
+#######################################################################
+# Launcher for multiple jobs at a time and set computational variables
+#
+# USAGE:        VASP_launcher [--nodes #nodes] [-c #cores] [-m #memory]
+#                                               [-q queue] [-a account]
+#                                                 [--dry] [-h | --help]
+#
+# all the '-*' arguments must preceed the input files
+# [*] options are optional, <*> files are mandatory
+#
+
+##  DEFAULT VARIABLES  ################################################
+
+  __version__='1.0'
+
+  nodes_def=1                       # min number of nodes
+  cores_def=8                       # number of cores / parallel enviroment
+  memory_def='16GB'                 # RAM memory (100MW = 800MB)
+
+  queue_def='thin'                  # name of queue to submit
+  account_def='molcat'              # name of account
+
+  msgf=$HOME/msg                    # path for output/error messages
+  jobf=$HOME/jobs                   # path to store '.job'
+  dry_flg=false                     # dry run: create .job file but do not launch [true, false]
+  required_files=( 'INCAR' )
+  executable='vasp_std'
+  unload_modules=( 'vasp' )
+  load_modules=( 'vasp/nvhpc/6.4.2' )
+
+#######################################################################
+
+## Checks existence of folders or create them
+if [[ ! -d $msgf ]]; then mkdir $msgf; fi
+if [[ ! -d $jobf ]]; then mkdir $jobf; fi
+
+## Checks for optional arguments
+while [ $# -gt 0 ]; do     # until no more arguments
+  arg="$1"
+  shift
+  case $arg in
+    -h|--help)          # print help and exit
+      echo "---------------  VASP_launcher  ---------------"
+      echo "                 VASP LAUNCHER"
+      echo
+      echo "Version: $__version__"
+      echo
+      echo "USAGE:   VASP_launcher [options]"
+      echo
+      echo "OPTIONS:"
+      echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
+      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
+      echo " -q | --queue  <queue>             queue name (def: $queue)"
+      echo " -a | --account <account>          account name (def: $account_def)"
+      echo " --dry                             dry run: create .job but do not launch"
+      echo " -h | --help                       print this help and exit"
+      echo
+      echo "INPUT:"
+      echo " The script must be run in the same directory as where the input files are,"
+      echo " including the INCAR file."
+      exit ;;
+    --nodes)
+      nodes=$1
+      shift
+      ;;
+    -c|--cores)
+      cores_in=$1
+      cores_flg=true
+      shift
+      ;;
+    -m|--memory)
+      memory_in=$1
+      memory_flg=true
+      shift
+      ;;
+    -q|--queue)
+      queue_def=$1
+      shift
+      ;;
+    -a|--account)
+      account=$1
+      shift
+      ;;
+    --dry)              # dry run
+      dry_flg=true
+      ;;
+    *)                  # error option
+      echo "ERROR: Wrong option '$arg'"
+      exit ;;
+  esac
+done
+
+## default values if not specified in input
+nodes=${nodes:=$nodes_def}
+cores_in=${cores_in:=$cores_def}
+memory_in=${memory_in:=$memory_def}
+queue=${queue:=$queue_def}
+account=${account:=$account_def}
+
+# get current directory name
+name=${PWD##*/}
+
+# check file existence and if directory name starts with a digit
+if [[ ! -f INCAR ]]; then
+  echo "ERROR: 'INCAR' file not found"
+  exit
+elif [[ $name =~ ^[0-9] ]]; then
+  echo "ERROR: '${name}' directory name can not start with a digit"
+  exit
+fi
+
+# initializate values
+cores=$cores_in
+memory=$memory_in
+
+## computational parameters
+#TODO: automatic handling of NBANDS/NCORE/KPAR/IMAGES (www.vasp.at/wiki/index.php/Category:Parallelization)
+
+## write .job file
+jobname="${name}.job"
+printf "#!/bin/bash\n\n" > ${jobname}
+{
+  # SLURM -----------------------------------------------------------
+  echo "#SBATCH -J ${name}"                    # Job name
+  echo "#SBATCH -e $msgf/${name}.msg"          # Error mesages path
+  echo "#SBATCH -o $msgf/${name}.msg"          # Output mesages path
+  echo "#SBATCH -p ${queue}"                   # Queue name
+  echo "#SBATCH -A ${account}"                 # Account name
+  echo "#SBATCH -N ${nodes}"                   # Nodes
+  echo "#SBATCH -c ${cores}"                   # Cores
+  echo "#SBATCH --mem=${memory}"               # Memory
+  echo ""
+
+  # modules
+  for mod in ${unload_modules[@]}; do
+    echo "module unload $mod"
+  done
+  for mod in ${load_modules[@]}; do
+    echo "module load $mod"
+  done
+  echo ""
+
+  # main execution
+  echo "mpirun -np ${cores} ${executable} > ${name}.log"
+} >> ${jobname}
+
+## launch
+if [ "$dry_flg" == "true" ]; then
+  echo "Job file '${jobname}' succesfully created!"
+else
+  sbatch ${jobname}
+  mv ${jobname} $jobf  # move .job file to proper folder
+fi
