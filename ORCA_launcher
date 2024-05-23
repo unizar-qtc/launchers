@@ -2,8 +2,8 @@
 
 # File: ORCA_launcher
 # Description : ORCA job launcher
-# Version : 1.5
-# Last update : 21-02-2024
+# Version : 1.6
+# Last update : 23-05-2024
 
 #######################################################################
 ##                           ORCA_launcher                           ##
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.5'
+  __version__='1.6'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -174,7 +174,8 @@ for file in "$@"; do
     done
 
     # main execution
-    echo "${executable} $file > ${name}.out"
+    echo "executable=\$(which ${executable})"
+    echo "\${executable} $file > ${name}.out"
   } >> ${jobname}
 
   ## launch
