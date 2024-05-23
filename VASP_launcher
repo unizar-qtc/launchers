@@ -2,8 +2,8 @@
 
 # File: VASP_launcher
 # Description : VASP job launcher
-# Version : 1.0
-# Last update : 27-02-2024
+# Version : 1.1
+# Last update : 23-05-2024
 
 #######################################################################
 ##                           VASP_launcher                           ##
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.0'
+  __version__='1.1'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -35,7 +35,7 @@
   required_files=( 'INCAR' )
   executable='vasp_std'
   unload_modules=( 'vasp' )
-  load_modules=( 'vasp/nvhpc/6.4.2' )
+  load_modules=( 'vasp/6.4.0' )
 
 #######################################################################
 
