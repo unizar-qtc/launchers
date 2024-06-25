@@ -2,8 +2,8 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.4
-# Last update : 21-02-2024
+# Version : 1.5
+# Last update : 25-06-2024
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
@@ -12,7 +12,7 @@
 #
 # USAGE:                   SCRIPT_launcher [--nodes #nodes] [-c #cores]
 #                       [-m #memory] [-g #gpus] [-q queue] [-a account]
-#                                                 [--dry] [-h | --help]
+#                                   [--name name] [--dry] [-h | --help]
 #                                                           <script.sh>
 #
 # [*] options are optional, <*> files are mandatory
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.4'
+  __version__='1.5'
 
   nodes_def=1                       # min number of nodes
   cores_def=1                       # number of cores / parallel enviroment
@@ -54,13 +54,15 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
       echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"
+      echo " --name  <name>                    name of the job (def: script/command name)"
       echo " --dry                             dry run: display command but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
       echo "INPUT:"
       echo " <script.sh> [arg]                 shell script file to be launched"
       echo "                                   must be the last argument, can be followed by arguments"
-      echo "                                   if not exists, a file named '<script>.sh' will be created"
+      echo "                                   if the file does not exist or it is a coomand,"
+      echo "                                   a file named '<script>.sh' will be created"
       echo "                                   stdout/stderr will be redirected to 'script.out'"
       exit ;;
     --nodes)
@@ -72,7 +74,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -m|--memory)
-      memory="--mem=$1"
+      memory=$1
       shift
       ;;
     -g|--gpus)
@@ -87,6 +89,10 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       account=$1
       shift
       ;;
+    --name)
+      name=$1
+      shift
+      ;;
     --dry)              # dry run
       dry_flg=true
       ;;
@@ -99,14 +105,19 @@ done
 ## default values if not specified in input
 nodes=${nodes:=$nodes_def}
 cores=${cores:=$cores_def}
-memory=${memory:=$memory_def}
 gpus=${gpus:=$gpus_def}
 queue=${queue:=$queue_def}
 account=${account:=$account_def}
+memory=${memory:=$memory_def}
+# modify memory format if not empty
+if [ ! -z "$memory" ]; then
+  memory="--mem=$memory"
+fi
 
 ## read script file from input
 file=$1
-name=${file%.*}       # name of input file without extension
+file_name=${file%.*}              # remove extension
+name=${name:=$file_name}          # name of input file without extension if not specified
 
 # check name starts with a digit
 if [[ ${name} =~ ^[0-9] ]]; then
@@ -130,7 +141,7 @@ fi
 
 ## check script file
 if [ ! -f $file ]; then
-  echo "WARNING: '$file' file does not exist. Creating '$name.sh'."
+  echo "NOTE: '$file' file does not exist. Creating '$name.sh'."
   echo "#!/bin/bash" > $name.sh
   echo "$@" >> $name.sh
   chmod +x $name.sh
