@@ -2,8 +2,8 @@
 
 # File: GMX_replicater
 # Description : Build and launch a sequential equilibration and production job in GROMACS
-# Version : 1.6
-# Last update : 21-02-2024
+# Version : 1.7
+# Last update : 10-09-2024
 
 #######################################################################
 ##                          GMX_replicater                           ##
@@ -11,15 +11,16 @@
 # Script to build and launch a sequential equilibration
 # and production job in GROMACS
 #
-# USAGE:       GMX_replicater [--nodes #nodes] [-c #cores] [-m #memory]
-#                                    [-g #gpus] [-q queue] [-a account]
+# USAGE:         GMX_replicater [--nodes #nodes] [--nodelist node_name]
+#                                   [-c #cores] [-m #memory] [-g #gpus]
+#                                               [-q queue] [-a account]
 #                                                             [options]
 #                                                 [--dry] [-h | --help]
 #
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.6'
+  __version__='1.7'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=16                      # number of cores / parallel enviroment
@@ -34,7 +35,7 @@
   dry_flg=false                     # dry run: create .job file but do not launch [true, false]
   executable='gmx'                  # executable command
   unload_modules=( 'gromacs')
-  load_modules=( 'gromacs/2023.4' )
+  load_modules=( 'gromacs/2023.1' )
 
   topol_def='topol.top'             # topology file
 
@@ -79,6 +80,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo
       echo "COMPUTING OPTIONS:"
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
@@ -124,6 +126,10 @@ while [ $# -gt 0 ]; do     # until no more arguments
     --nodes)
       nodes=$1
       shift ;;
+    --nodelist)
+      nodelist="#SBATCH --nodelist=$1"
+      shift
+      ;;
     -c|--cores)
       cores=$1
       shift ;;
@@ -134,7 +140,7 @@ while [ $# -gt 0 ]; do     # until no more arguments
       gpus=$1
       shift ;;
     -q|--queue)
-      queue_def=$1
+      queue=$1
       shift
       ;;
     -a|--account)
@@ -199,8 +205,9 @@ for replica in ${replica_list[@]}; do
     echo "#SBATCH -p ${queue}"                   # Queue name
     echo "#SBATCH -A ${account}"                 # Account name
     echo "#SBATCH -N ${nodes}"                   # Nodes
-    echo "#SBATCH -c ${cores}"                   # Cores
+    echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
     echo "#SBATCH --mem=${memory}"               # Memory
+    echo "${nodelist}"                           # List of nodes
     if [ "$queue_slurm" == 'gpu' ]; then
       echo "#SBATCH --gres=gpu:${gpus}"          # GPUs
     fi

@@ -2,17 +2,17 @@
 
 # File: VASP_launcher
 # Description : VASP job launcher
-# Version : 1.1
-# Last update : 23-05-2024
+# Version : 1.2
+# Last update : 10-09-2024
 
 #######################################################################
 ##                           VASP_launcher                           ##
 #######################################################################
 # Launcher for multiple jobs at a time and set computational variables
 #
-# USAGE:        VASP_launcher [--nodes #nodes] [-c #cores] [-m #memory]
-#                                               [-q queue] [-a account]
-#                                                 [--dry] [-h | --help]
+# USAGE:          VASP_launcher [--nodes #nodes] [--nodelist node_name]
+#                      [-c #cores] [-m #memory] [-q queue] [-a account]
+#                                   [--name name] [--dry] [-h | --help]
 #
 # all the '-*' arguments must preceed the input files
 # [*] options are optional, <*> files are mandatory
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.1'
+  __version__='1.2'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -28,6 +28,8 @@
 
   queue_def='thin'                  # name of queue to submit
   account_def='molcat'              # name of account
+
+  name_def=${PWD##*/}               # job name (current directory)
 
   msgf=$HOME/msg                    # path for output/error messages
   jobf=$HOME/jobs                   # path to store '.job'
@@ -58,10 +60,12 @@ while [ $# -gt 0 ]; do     # until no more arguments
       echo
       echo "OPTIONS:"
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
-      echo " -q | --queue  <queue>             queue name (def: $queue)"
+      echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"
+      echo " --name  <name>                    name of the job (def: directory name)"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -71,6 +75,10 @@ while [ $# -gt 0 ]; do     # until no more arguments
       exit ;;
     --nodes)
       nodes=$1
+      shift
+      ;;
+    --nodelist)
+      nodelist="#SBATCH --nodelist=$1"
       shift
       ;;
     -c|--cores)
@@ -84,11 +92,15 @@ while [ $# -gt 0 ]; do     # until no more arguments
       shift
       ;;
     -q|--queue)
-      queue_def=$1
+      queue=$1
       shift
       ;;
     -a|--account)
       account=$1
+      shift
+      ;;
+    --name)
+      name=$1
       shift
       ;;
     --dry)              # dry run
@@ -106,9 +118,7 @@ cores_in=${cores_in:=$cores_def}
 memory_in=${memory_in:=$memory_def}
 queue=${queue:=$queue_def}
 account=${account:=$account_def}
-
-# get current directory name
-name=${PWD##*/}
+name=${name:=$name_def}
 
 # check file existence and if directory name starts with a digit
 if [[ ! -f INCAR ]]; then
@@ -137,8 +147,9 @@ printf "#!/bin/bash\n\n" > ${jobname}
   echo "#SBATCH -p ${queue}"                   # Queue name
   echo "#SBATCH -A ${account}"                 # Account name
   echo "#SBATCH -N ${nodes}"                   # Nodes
-  echo "#SBATCH -c ${cores}"                   # Cores
+  echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
   echo "#SBATCH --mem=${memory}"               # Memory
+  echo "${nodelist}"                           # List of nodes
   echo ""
 
   # modules

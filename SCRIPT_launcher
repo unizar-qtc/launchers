@@ -2,16 +2,16 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.5
-# Last update : 25-06-2024
+# Version : 1.6
+# Last update : 10-09-2024
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
 #######################################################################
 # Launcher for generic scripts on calculation nodes through queues
 #
-# USAGE:                   SCRIPT_launcher [--nodes #nodes] [-c #cores]
-#                       [-m #memory] [-g #gpus] [-q queue] [-a account]
+# USAGE:        SCRIPT_launcher [--nodes #nodes] [--nodelist node_name]
+#           [-c #cores] [-m #memory] [-g #gpus] [-q queue] [-a account]
 #                                   [--name name] [--dry] [-h | --help]
 #                                                           <script.sh>
 #
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.5'
+  __version__='1.6'
 
   nodes_def=1                       # min number of nodes
   cores_def=1                       # number of cores / parallel enviroment
@@ -49,6 +49,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo
       echo "OPTIONS:"
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: all available)"
       echo " -g | --gpus  <#gpus>              number of GPUs (def: $gpus_def)"
@@ -69,12 +70,16 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       nodes=$1
       shift
       ;;
+    --nodelist)
+      nodelist="--nodelist=$1"
+      shift
+      ;;
     -c|--cores)
       cores=$1
       shift
       ;;
     -m|--memory)
-      memory=$1
+      memory="--mem=$1"
       shift
       ;;
     -g|--gpus)
@@ -82,7 +87,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -q|--queue)
-      queue_def=$1
+      queue=$1
       shift
       ;;
     -a|--account)
@@ -109,10 +114,6 @@ gpus=${gpus:=$gpus_def}
 queue=${queue:=$queue_def}
 account=${account:=$account_def}
 memory=${memory:=$memory_def}
-# modify memory format if not empty
-if [ ! -z "$memory" ]; then
-  memory="--mem=$memory"
-fi
 
 ## read script file from input
 file=$1
@@ -133,8 +134,9 @@ executable="sbatch \
               -p $queue \
               -A $account \
               -N $nodes \
-              -c $cores \
-              $memory"
+              --ntasks-per-node=$cores \
+              $memory \
+              $nodelist"
 if [ "$queue" == 'gpu' ]; then
   executable=$executable" --gres=gpu:$gpus"
 fi

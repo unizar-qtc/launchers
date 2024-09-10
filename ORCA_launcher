@@ -2,16 +2,16 @@
 
 # File: ORCA_launcher
 # Description : ORCA job launcher
-# Version : 1.6
-# Last update : 23-05-2024
+# Version : 1.7
+# Last update : 10-09-2024
 
 #######################################################################
 ##                           ORCA_launcher                           ##
 #######################################################################
 # Launcher for multiple jobs at a time and set computational variables
 #
-# USAGE:        ORCA_launcher [--nodes #nodes] [-c #cores] [-m #memory]
-#                                       [-q queue] [-a account] [--dir]
+# USAGE:         ORCA_launcher [--nodes #nodes]  [--nodelist node_name]
+#              [-c #cores] [-m #memory] [-q queue] [-a account] [--dir]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.inp> <file2.inp> <...>
 #
@@ -21,7 +21,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.6'
+  __version__='1.7'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -65,9 +65,10 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo
       echo "OPTIONS:"
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
-      echo " -q | --queue  <queue>             queue name (def: $queue)"
+      echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"
       echo " --dir                             create a directory for the calculation and lauch there"
       echo " --dry                             dry run: create .job but do not launch"
@@ -81,6 +82,10 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       nodes=$1
       shift
       ;;
+    --nodelist)
+      nodelist="#SBATCH --nodelist=$1"
+      shift
+      ;;
     -c|--cores)
       cores_in=$1
       cores_flg=true
@@ -92,7 +97,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -q|--queue)
-      queue_def=$1
+      queue=$1
       shift
       ;;
     -a|--account)
@@ -164,8 +169,9 @@ for file in "$@"; do
     echo "#SBATCH -p ${queue}"                   # Queue name
     echo "#SBATCH -A ${account}"                 # Account name
     echo "#SBATCH -N ${nodes}"                   # Nodes
-    echo "#SBATCH -c ${cores}"                   # Cores
+    echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
     echo "#SBATCH --mem=${memory}"               # Memory
+    echo "${nodelist}"                           # List of nodes
     echo ""
 
     # modules

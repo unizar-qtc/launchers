@@ -2,15 +2,16 @@
 
 # File: G16_launcher
 # Description : Gaussian 16 job launcher
-# Version : 1.3
-# Last update : 21-02-2024
+# Version : 1.4
+# Last update : 10-09-2024
 
 #######################################################################
 ##                           G16_launcher                            ##
 #######################################################################
 # Launcher for multiple jobs at a time and set computational variables
 #
-# USAGE:         G16_launcher [--nodes #nodes] [-c #cores] [-m #memory]
+# USAGE:           G16_launcher [--nodes #nodes] [--nodelist node_name]
+#                                              [-c #cores] [-m #memory]
 #                          [-q queue] [-a account] [--ign-chk] [--fchk]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.com> <file2.com> <...>
@@ -22,7 +23,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.3'
+  __version__='1.4'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -68,7 +69,8 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo "USAGE:   G16_launcher [options] <file.com> ..."
       echo
       echo "OPTIONS:"
-      echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
+      echo " --nodes  <#nodes>                 number of nodes (def: $nodes_def)"
+      echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
       echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (def: $queue_def)"
@@ -86,6 +88,10 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       nodes=$1
       shift
       ;;
+    --nodelist)
+      nodelist="#SBATCH --nodelist=$1"
+      shift
+      ;;
     -c|--cores)
       cores_in=$1
       cores_flg=true
@@ -97,7 +103,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       shift
       ;;
     -q|--queue)
-      queue_def=$1
+      queue=$1
       shift
       ;;
     -a|--account)
@@ -194,8 +200,9 @@ for file in "$@"; do
     echo "#SBATCH -p ${queue}"                   # Queue name
     echo "#SBATCH -A ${account}"                 # Account name
     echo "#SBATCH -N ${nodes}"                   # Nodes
-    echo "#SBATCH -c ${cores}"                   # Cores
+    echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
     echo "#SBATCH --mem=${memory}"               # Memory
+    echo "${nodelist}"                           # List of nodes
     echo ""
 
     # modules
