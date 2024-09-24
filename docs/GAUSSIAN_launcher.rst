@@ -2,7 +2,7 @@
 GAUSSIAN launchers
 ##################
 
-This documentation can be used for both ``G09_launcher`` and ``G16_launcher``. From now on, in this document the generic notation ``GXX_launcher`` is used.
+By default, Gaussian 16 will be used. If Gaussian 09 is preferred, use the same launcher with the option ``--g09``.
 
 
 SYNOPSIS
@@ -10,19 +10,19 @@ SYNOPSIS
 
 .. code-block::
 
-    GXX_launcher [options] <.com> ...
+    G16_launcher [options] <.com> ...
 
 
 DESCRIPTION
 ===========
 
-Advanced launcher for Gaussian calculation jobs at *cierzo*/*agustina*.
+Advanced launcher for Gaussian calculation jobs at *agustina*.
 
 To use this script type the name of the launcher, followed by the optional options related to computational resources and lastly put the name of one or several Gaussian input files, with the extension ``.com`` or ``.gjf``.
 
 For every input file (e.g.: *h2o.com*) a new job file (*h2o.job*) is created with the resources to be requested to the queue system and instructions to run the job. After the job is submitted, this file is moved to a folder called *jobs* in the *home* directory. Possible output/error messages produced by the queue manager or system while running the calculation are redirected to a file (*h2o.msg*) in a folder called *msg* in the *home* directory.
 
-If the option ``--dry-run`` is used, the job files are created but not submitted to the queue system. This is useful to prepare the calculations in advance.
+If the option ``--dry`` is used, the job files are created but not submitted to the queue system. This is useful to prepare the calculations in advance.
 
 The result of the calculation is placed in a log file (*h2o.log*) in the same directory as the input file. If no chk file is specified in the input file, one is created (*h2o.chk*) by default in the same directory. If a *%chk* directive is found in the input file, that will be the one used. Nevertheless, it can be explicitly ignored and be overwritten by the default one with the option ``--ign-chk``.
 
@@ -52,28 +52,34 @@ EXAMPLES
 
 .. code-block::
 
-    GXX_launcher h2o.com
+    G16_launcher h2o.com
 
 2. Run multiple Gaussian calculation jobs with default resources:
 
 .. code-block::
 
-    GXX_launcher h2o.com h2o2.com h2o3.com
+    G16_launcher h2o.com h2o2.com h2o3.com
 
 3. Run a single Gaussian calculation job with specific resources:
 
 .. code-block::
 
-    GXX_launcher --cores 4 --memory 8GB h2o.com
+    G16_launcher --cores 4 --memory 8GB h2o.com
 
 4. Run a single Gaussian calculation job with specific resources, ignore the checkpoint file in the input and generate a formatted checkpoint file at the end:
 
 .. code-block::
 
-    GXX_launcher --cores 16 --memory 12GB --ign-chk --fchk h2o.com
+    G16_launcher --cores 16 --memory 12GB --ign-chk --fchk h2o.com
 
 5. Prepare, but do not run, Gaussian calculations for all the files in the current directory with specific resources:
 
 .. code-block::
 
-    GXX_launcher --dry-run --cores 8 *.com
+    G16_launcher --dry --cores 8 *.com
+
+6. Run a calculation with Gaussian 09:
+
+.. code-block::
+
+    G16_launcher --g09 h2o.com

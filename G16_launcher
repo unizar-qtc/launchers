@@ -2,8 +2,8 @@
 
 # File: G16_launcher
 # Description : Gaussian 16 job launcher
-# Version : 1.4
-# Last update : 10-09-2024
+# Version : 1.5
+# Last update : 24-09-2024
 
 #######################################################################
 ##                           G16_launcher                            ##
@@ -11,8 +11,8 @@
 # Launcher for multiple jobs at a time and set computational variables
 #
 # USAGE:           G16_launcher [--nodes #nodes] [--nodelist node_name]
-#                                              [-c #cores] [-m #memory]
-#                          [-q queue] [-a account] [--ign-chk] [--fchk]
+#                      [-c #cores] [-m #memory] [-q queue] [-a account]
+#                                          [--ign-chk] [--fchk] [--g09]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.com> <file2.com> <...>
 #
@@ -23,7 +23,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.4'
+  __version__='1.5'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -42,6 +42,9 @@
   executable='g16'                  # executable command
   unload_modules=( 'gaussian' )
   load_modules=( 'gaussian/g16' )
+
+  executable_g09='g09'
+  load_modules_g09=( 'gaussian/g09')
 
 #######################################################################
 
@@ -77,6 +80,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " -a | --account <account>          account name (def: $account_def)"
       echo " --ign-chk                         ignore existing .chk path in input file"
       echo " --fchk                            generate a .fchk after the job is finished"
+      echo " --g09                             use Gaussian 09 instead of Gaussian 16"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -115,6 +119,11 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       ;;
     --fchk)             # create '.fchk'
       fchk_flg=true
+      ;;
+    --g09)              # use Gaussian 09
+      g09_flg=true
+      executable=$executable_g09
+      load_modules=(${load_modules_g09[@]})
       ;;
     --dry)              # dry run
       dry_flg=true

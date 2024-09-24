@@ -1,13 +1,13 @@
 # launchers
 *Scripts to launch calculations to BIFI queues*
 
-### List of launchers (for *memento* & *cierzo*)
-  - [G09_launcher](./docs/GAUSSIAN_launcher.rst)
+### List of launchers (for *agustina*)
   - [G16_launcher](./docs/GAUSSIAN_launcher.rst)
   - GMX_launcher
   - GMX_replicater
   - ORCA_launcher
   - JAGUAR_launcher
+  - VASP_launcher
   - SCRIPT_launcher
   - INTERACTIVE_launcher
 
