@@ -2,8 +2,8 @@
 
 # File: GMX_replicater
 # Description : Build and launch a sequential equilibration and production job in GROMACS
-# Version : 1.7
-# Last update : 10-09-2024
+# Version : 1.8
+# Last update : 23-09-2024
 
 #######################################################################
 ##                          GMX_replicater                           ##
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.7'
+  __version__='1.8'
 
   nodes_def=1                       # number of nodes (only of SLURM)
   cores_def=16                      # number of cores / parallel enviroment
@@ -207,10 +207,8 @@ for replica in ${replica_list[@]}; do
     echo "#SBATCH -N ${nodes}"                   # Nodes
     echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
     echo "#SBATCH --mem=${memory}"               # Memory
+    echo "#SBATCH --gpus=${gpus}"                # GPUs
     echo "${nodelist}"                           # List of nodes
-    if [ "$queue_slurm" == 'gpu' ]; then
-      echo "#SBATCH --gres=gpu:${gpus}"          # GPUs
-    fi
     echo ""
 
     # modules

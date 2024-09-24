@@ -2,8 +2,8 @@
 
 # File: SCRIPT_launcher
 # Description : generic script launcher
-# Version : 1.6
-# Last update : 10-09-2024
+# Version : 1.7
+# Last update : 23-09-2024
 
 #######################################################################
 ##                          SCRIPT_launcher                          ##
@@ -20,7 +20,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.6'
+  __version__='1.7'
 
   nodes_def=1                       # min number of nodes
   cores_def=1                       # number of cores / parallel enviroment
@@ -135,11 +135,9 @@ executable="sbatch \
               -A $account \
               -N $nodes \
               --ntasks-per-node=$cores \
+              --gpus=$gpus \
               $memory \
               $nodelist"
-if [ "$queue" == 'gpu' ]; then
-  executable=$executable" --gres=gpu:$gpus"
-fi
 
 ## check script file
 if [ ! -f $file ]; then
