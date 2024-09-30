@@ -2,8 +2,8 @@
 
 # File: G16_launcher
 # Description : Gaussian 16 job launcher
-# Version : 1.5
-# Last update : 24-09-2024
+# Version : 1.6
+# Last update : 30-09-2024
 
 #######################################################################
 ##                           G16_launcher                            ##
@@ -12,7 +12,7 @@
 #
 # USAGE:           G16_launcher [--nodes #nodes] [--nodelist node_name]
 #           [-c #cores] [-m #memory] [-g #gpus] [-q queue] [-a account]
-#                                          [--ign-chk] [--fchk] [--g09]
+#                                  [--ign-chk] [--fchk] [--g09] [--nbo]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.com> <file2.com> <...>
 #
@@ -23,7 +23,7 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.5'
+  __version__='1.6'
 
   nodes_def=1                       # min number of nodes
   cores_def=8                       # number of cores / parallel enviroment
@@ -46,6 +46,8 @@
 
   executable_g09='g09'
   load_modules_g09=( 'gaussian/g09')
+
+  nbo_modules=( 'nbo/7' )
 
 #######################################################################
 
@@ -83,6 +85,7 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " --ign-chk                         ignore existing .chk path in input file"
       echo " --fchk                            generate a .fchk after the job is finished"
       echo " --g09                             use Gaussian 09 instead of Gaussian 16"
+      echo " --nbo                             load Natural Bond Orbital module (NBO 7)"
       echo " --dry                             dry run: create .job but do not launch"
       echo " -h | --help                       print this help and exit"
       echo
@@ -131,6 +134,9 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       executable=$executable_g09
       load_modules=(${load_modules_g09[@]})
       ;;
+    --nbo)              # load NBO module
+      nbo_flg=true
+      ;;
     --dry)              # dry run
       dry_flg=true
       ;;
@@ -147,6 +153,11 @@ memory_in=${memory_in:=$memory_def}
 gpus=${gpus:=$gpus_def}
 queue=${queue:=$queue_def}
 account=${account:=$account_def}
+
+## load NBO module if specified
+if [ "$nbo_flg" == "true" ]; then
+  load_modules=(${load_modules[@]} ${nbo_modules[@]})
+fi
 
 ## go through every input file found in the arguments
 for file in "$@"; do
