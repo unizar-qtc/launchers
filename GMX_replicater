@@ -35,7 +35,7 @@
   dry_flg=false                     # dry run: create .job file but do not launch [true, false]
   executable='gmx'                  # executable command
   unload_modules=( 'gromacs')
-  load_modules=( 'gromacs/2023.1' )
+  load_modules=( 'gromacs/gromacs-2024.3_cuda' )
 
   topol_def='topol.top'             # topology file
 
