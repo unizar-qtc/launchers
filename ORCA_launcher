@@ -2,8 +2,8 @@
 
 # File: ORCA_launcher
 # Description : ORCA job launcher
-# Version : 1.7
-# Last update : 10-09-2024
+# Version : 1.8
+# Last update : 02-09-2025
 
 #######################################################################
 ##                           ORCA_launcher                           ##
@@ -11,7 +11,7 @@
 # Launcher for multiple jobs at a time and set computational variables
 #
 # USAGE:         ORCA_launcher [--nodes #nodes]  [--nodelist node_name]
-#              [-c #cores] [-m #memory] [-q queue] [-a account] [--dir]
+#                           [-c #cores] [-q queue] [-a account] [--dir]
 #                                                 [--dry] [-h | --help]
 #                                         <file1.inp> <file2.inp> <...>
 #
@@ -21,11 +21,11 @@
 
 ##  DEFAULT VARIABLES  ################################################
 
-  __version__='1.7'
+  __version__='1.8'
 
   nodes_def=1                       # min number of nodes
-  cores_def=8                       # number of cores / parallel enviroment
-  memory_def='16GB'                 # RAM memory (100MW = 800MB)
+  cores_def=16                      # number of cores / parallel enviroment
+  memory_def=''                     # RAM memory (100MW = 800MB)
 
   queue_def='thin'                  # name of queue to submit
   account_def='molcat'              # name of account
@@ -67,7 +67,6 @@ while [ ${1:0:1} == "-" ]; do     # until arguments does not start with '-'
       echo " --nodes  <#nodes>                 min number of nodes (def: $nodes_def)"
       echo " --nodelist  <node_name>           name of specific nodes, can be a comma separated list (def: all)"
       echo " -c | --cores  <#cores>            number of cores (def: $cores_def)"
-      echo " -m | --memory  <memory>           amount of RAM memory (def: $memory_def)"
       echo " -q | --queue  <queue>             queue name (def: $queue_def)"
       echo " -a | --account <account>          account name (def: $account_def)"
       echo " --dir                             create a directory for the calculation and lauch there"
@@ -170,7 +169,6 @@ for file in "$@"; do
     echo "#SBATCH -A ${account}"                 # Account name
     echo "#SBATCH -N ${nodes}"                   # Nodes
     echo "#SBATCH --ntasks-per-node=${cores}"    # Cores
-    echo "#SBATCH --mem=${memory}"               # Memory
     echo "${nodelist}"                           # List of nodes
     echo ""
 
