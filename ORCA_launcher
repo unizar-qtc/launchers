@@ -27,7 +27,7 @@
   cores_def=16                      # number of cores / parallel enviroment
   memory_def=''                     # RAM memory (100MW = 800MB)
 
-  queue_def='thin'                  # name of queue to submit
+  queue_def='agustina_thin'         # name of queue to submit
   account_def='molcat'              # name of account
 
   msgf=$HOME/msg                    # path for output/error messages

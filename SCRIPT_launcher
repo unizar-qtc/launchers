@@ -27,7 +27,7 @@
   memory_def=''                     # RAM memory (100MW = 800MB)
   gpus_def=0                        # number of GPU cards
 
-  queue_def='thin'                  # name of queue to submit
+  queue_def='agustina_thin'         # name of queue to submit
   account_def='molcat'              # name of account
 
   dry_flg=false                     # dry run: display command but do not launch [true, false]
